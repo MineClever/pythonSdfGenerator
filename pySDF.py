@@ -35,8 +35,6 @@ class GlobalVar ():
     mWidth = 256
     mHeight = 256
 
-
-
 class Point () :
     
     def __init__ (self , pX ,pY):
@@ -54,10 +52,12 @@ class Grid ():
             for y in range(pHeight):
                 self.mGrid[pWidth][pHeight] = Point(pWidth, pHeight)
 
+
 lInside = Point(0,0)
 lEmpty = Point(9999,9999)
-lGridA = Grid ()
-lGridB = Grid ()
+lGridA = Grid (GlobalVar.mWidth,GlobalVar.mHeight)
+lGridB = Grid (GlobalVar.mWidth,GlobalVar.mHeight)
+
 
 def getPoint (pGrid : Grid , pX: int, pY: int):
     if (pX >=0 and pY >=0 and pX < GlobalVar.mWidth and pY < GlobalVar.mHeight):
