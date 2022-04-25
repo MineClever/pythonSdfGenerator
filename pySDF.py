@@ -15,6 +15,8 @@ import numpy as np
 # now.sdf = lambed now : [(near.sdf + distance(now,near)) for near in aroundPx(now)].min
 
 
+# ref to https://blog.csdn.net/tianwaifeimao/article/details/45078661
+# 欧几里得距离转换 (Euclidean Distance Transform, EDT) 
 
 # ref to https://zhuanlan.zhihu.com/p/337944099
 # How to generate a SDF
