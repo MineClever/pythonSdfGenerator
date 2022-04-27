@@ -8,9 +8,8 @@ import numpy as np
 # def type
 class Vector2 ():
     def __init__(self, x=0,y=0):
-        self.data = np.zeros(2, dtype=float)
-        self.x = x
-        self.y = y
+        tempList = [x,y]
+        self.data = np.array(tempList,dtype=float)
 
     @property
     def x (self):
@@ -18,15 +17,15 @@ class Vector2 ():
 
     @x.setter
     def x (self, value):
-        self.data[0] = float(value)
+        self.data[0] = (value)
         
     @property
     def y (self):
         return self.data[1]
 
-    @x.setter
+    @y.setter
     def y (self, value):
-        self.data[1] = float(value)
+        self.data[1] = (value)
 
     def __add__ (self, value):
         return Vector2((self.x+value.x),(self.y+value.y))
@@ -54,20 +53,25 @@ class SSEDT8 (object):
         def __init__(self, width:int , height:int):  
             self.width = width
             self.height = height
-            self.size = Vector2(width,height)
-            self.distances = [Vector2()]* (width*height)
+            self.size = Vector2(self.width,self.height)
+            self.distances = [Vector2()]* (self.width*self.height)
+
+        def __str__ (self):
+            return "width:{},height:{}".format(self.size.x, self.size.y)
         
         def has (self, x:int, y:int) -> bool:
             return (0 <= x and x < self.size.x and 0 <= self.size.y and y < self.size.y)
 
         def _index (self, x:int, y:int) -> int:
-            return (y * self.size.x + x)
+            # print ("x : {}, y: {}".format(x,y))
+            return int(y * self.size.x + x)
 
-
+        
         def get_size(self) -> Vector2:
             return self.size
 
         def get_dist(self, x:int, y:int) -> Vector2:
+            # print (self._index(x,y))
             return self.distances[self._index(x,y)]
 
         def set_dist(self, x:int, y:int, p_dinstance:Vector2) :
@@ -88,7 +92,7 @@ class SSEDT8 (object):
 
     @classmethod
     def apply_offsets (cls, p_grid : Grid,x :int ,y :int, p_offsets:list):
-        size = p_offsets.size
+        size = len(p_offsets)
         for i in range(size):
             p_grid.update(x,y,p_offsets[i])
     
@@ -104,13 +108,26 @@ class SSEDT8 (object):
                 while (x >= 0):
                     cls.apply_offsets(p_grid, x, y, p_offsets1)
                     x -= 1
-                else:
-                    x = 0
+                # else:
+                #     x = 0
                 while (x < width):
                     cls.apply_offsets(p_grid, x, y, p_offsets2)
                     x += 1
                 y -= 1
-                    
+        else:
+            y = 0
+            x = 0
+            while (y < height) :
+                while (x < width):
+                    cls.apply_offsets(p_grid, x, y, p_offsets1)
+                    x += 1
+                else:
+                    x = width - 1
+                while (x > 0):
+                    cls.apply_offsets(p_grid, x, y, p_offsets2)
+                    x -= 1
+                y += 1
+
         
 
     @staticmethod
@@ -118,22 +135,26 @@ class SSEDT8 (object):
         pass
 
     @classmethod
-    def do_sdf (cls, p_input_image_path='',p_output_image_path='', scale = 0.005):
+    def do_sdf (cls, p_input_image_path='',p_output_image_path='', scale = 0.025):
         # read img by openCV
-        img = cv2.imread(p_input_image_path)
+        img = cv2.imread(p_input_image_path,cv2.IMREAD_UNCHANGED)
+        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        print (img.shape)
         width = img.shape[0]
         height = img.shape[1]
 
         # Initialise grids
-        grid1 = cls.Grid(width,height)
-        grid2 = cls.Grid(width,height)
-        DISTANT = sys.maxsize
+        grid1 = SSEDT8.Grid(width,height)
+        grid2 = SSEDT8.Grid(width,height)
+        DISTANT = 999999
 
         for y in range(height):
             for x in range(width):
-                distance = 0 if img[x][y][2] > 0 else DISTANT
+                img_pixel = img[x][y][2] / 255 # convert 255 -> 1.0
+                distance = 0 if img_pixel > 0.5 else DISTANT
                 grid1.set_dist(x, y, Vector2(distance, distance))
-                grid2.set_dist(x, y, Vector2(DISTANT - distance, DISTANT - distance))
+                substract_dist = DISTANT - distance
+                grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
 
 
         # using relative offset [offset x, offset y] :
@@ -178,9 +199,12 @@ class SSEDT8 (object):
         offsets2.clear()
         offsets2.append(Vector2(-1, 0)) # 0
 
-
+        cls.apply_pass(grid1 , offsets1 ,offsets2 ,True)
+        cls.apply_pass(grid2 , offsets1 ,offsets2 ,True)
+        
         # make Img data
-        out_img = np.zeros((width,height),dtype=np.float32)
+        out_img = np.zeros((width,height),dtype=np.float16)
+        # print(out_img.shape)
         for y in range(height):
             for x in range(width):
                 distance1 = grid1.get_dist(x, y)
@@ -189,7 +213,7 @@ class SSEDT8 (object):
                 distance = (1 + max(-1, min(distance * scale, 1))) / 2.0
                 out_img[x][y] = distance
 
-        cv2.imshow("SDF Image", out_img.astype(np.uint8))
-        
-        #cv2.imwrite(p_output_image_path,out_img.astype(np.uint8))
+        out_img_scaled = np.clip(out_img *255,0,255).astype('uint8')
+
+        cv2.imwrite(p_output_image_path,out_img_scaled)
         
