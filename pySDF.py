@@ -143,8 +143,8 @@ class SSEDT8 (object):
         height = img.shape[1]
 
         # Initialise grids
-        grid1 = SSEDT8.Grid(width,height)
-        grid2 = SSEDT8.Grid(width,height)
+        grid1 = cls.Grid(width,height)
+        grid2 = cls.Grid(width,height)
         DISTANT = 999999
 
         for y in range(height):
