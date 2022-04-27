@@ -1,5 +1,5 @@
 # _*_ coding=utf-8 _*_
-
+# MineClever 's 2D SDF Generator~
 
 import os, sys
 import cv2 as cv2
@@ -208,7 +208,7 @@ class SSEDT8 (object):
             for x in range(width):
                 distance1 = grid1.get_dist(x, y)
                 distance2 = grid2.get_dist(x, y)
-                distance = distance1.length() - distance2.length()
+                distance = distance2.length() - distance1.length()
                 distance = (1 + max(-1, min(distance * scale, 1))) / 2.0
                 out_img[x][y] = distance
 
