@@ -8,8 +8,7 @@ import numpy as np
 # def type
 class Vector2 ():
     def __init__(self, x=0,y=0):
-        tempList = [x,y]
-        self.data = np.array(tempList,dtype=float)
+        self.data = np.array((x,y),dtype=float)
 
     @property
     def x (self):
