@@ -53,7 +53,7 @@ class SSEDT8 (object):
             self.width = width
             self.height = height
             self.size = Vector2(self.width,self.height)
-            self.distances = [Vector2()]* (self.width*self.height)
+            self.distances = [Vector2(0,0)]* (self.width*self.height)
 
         def __str__ (self):
             return "width:{},height:{}".format(self.size.x, self.size.y)
@@ -137,11 +137,23 @@ class SSEDT8 (object):
     def do_sdf (cls, p_input_image_path='',p_output_image_path='', scale = 0.025):
         # read img by openCV
         img = cv2.imread(p_input_image_path,cv2.IMREAD_UNCHANGED)
-        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        print (img.shape)
+
         width = img.shape[0]
         height = img.shape[1]
-
+        max_len = height if height > width else width
+        print (img.shape)
+        
+        if max_len > 512:
+            print("do scale")
+            scale_fac = 512 / max_len
+            print (scale_fac)
+            img = cv2.resize(img,dsize=(int(width*scale_fac) , int(height* scale_fac)),interpolation=cv2.INTER_LANCZOS4)
+            width = img.shape[0]
+            height = img.shape[1]
+        
+        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        print (img.shape)
+        
         # Initialise grids
         grid1 = cls.Grid(width,height)
         grid2 = cls.Grid(width,height)
