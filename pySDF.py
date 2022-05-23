@@ -31,7 +31,8 @@ class Vector2 ():
 
     def length_squared (self) -> float:
         return (self.x*self.x + self.y*self.y)
-
+        # return np.square(self.data)
+    
     def length (self) -> float:
         return np.sqrt(self.length_squared())
     
@@ -134,7 +135,7 @@ class SSEDT8 (object):
         pass
 
     @classmethod
-    def do_sdf (cls, p_input_image_path='',p_output_image_path='', scale = 0.025):
+    def do_sdf (cls, p_input_image_path='',p_output_image_path='',p_max_img_size = 1024, p_px_scale = 0.025):
         # read img by openCV
         img = cv2.imread(p_input_image_path,cv2.IMREAD_UNCHANGED)
 
@@ -221,7 +222,7 @@ class SSEDT8 (object):
                 distance1 = grid1.get_dist(x, y)
                 distance2 = grid2.get_dist(x, y)
                 distance = distance2.length() - distance1.length()
-                distance = (1 + max(-1, min(distance * scale, 1))) / 2.0
+                distance = (1 + max(-1, min(distance * p_px_scale, 1))) / 2.0
                 out_img[x][y] = distance
 
         out_img_scaled = np.clip(out_img *255,0,255).astype('uint8')
