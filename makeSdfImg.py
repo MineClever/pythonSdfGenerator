@@ -23,7 +23,11 @@ if not os.path.exists(export_dir):
 for file in files_list:
     export_short_name = os.path.splitext(os.path.split(file)[1])[0] + "_sdf.png"
     export_full_path = os.path.join(export_dir,export_short_name).replace("\\","/")
-    SSEDT8.do_genshin_sdf_sequence_export(file, export_full_path,p_scale=1.25, p_img_size= 128)
+    SSEDT8.do_genshin_sdf_sequence_export(file, export_full_path, p_scale=1.25, p_img_size= 128)
     print("Finish export : %s" % (export_short_name))
 
-input()
+print("Gen blend one ...")
+blend_export_full_path = os.path.join(export_dir,"mixed_sdf").replace("\\","/") + ".png"
+SSEDT8.do_genshin_sdf_blend_export(files_list, blend_export_full_path, p_scale=1.25, p_img_size= 128)
+
+input("Press any key ...")

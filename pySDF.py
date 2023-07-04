@@ -4,6 +4,7 @@
 import os, sys
 import cv2 as cv2
 import numpy as np
+import math as math
 
 # def type
 class Vector2 ():
@@ -227,9 +228,7 @@ class SSEDT8 (object):
     @classmethod
     def do_genshin_sdf_sequence_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         img_data_array = cls.do_sdf(p_input_image_path, p_img_size)
-
         max_val = np.max(img_data_array)
-        
         for y in range(p_img_size):
             for x in range(p_img_size):
                 distance = img_data_array[x][y]
@@ -237,4 +236,54 @@ class SSEDT8 (object):
                 img_data_array[x][y] = distance / max_val * p_scale
         out_img_scaled = np.clip(img_data_array *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
+
+
+    @classmethod
+    def do_genshin_sdf_blend_export (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
+        if not p_input_image_path_list:
+            return
         
+        def lerp(a, b, value):
+            # type: (float, float, float) -> float
+            return a + value * (b - a)
+
+        def saturate(a):
+            # type: (float) -> float
+            return min(1,max(0,a))
+
+        def smoothstep( a,  b,  x):
+            # type: (float, float, float) -> float
+            t = saturate((x - a)/(b - a))
+            return t*t*(3.0 - (2.0*t))
+        
+        img_counts = p_input_image_path_list.__len__()
+        # NOTE: process all images, last img is export img
+        all_img_data_array = np.zeros((img_counts+1, p_img_size, p_img_size),dtype=np.float16)
+        
+        for index in range(img_counts):
+            img_path = p_input_image_path_list[index]
+            img_data_array = cls.do_sdf(img_path, p_img_size)
+            max_val = np.max(img_data_array)
+            for y in range(p_img_size):
+                for x in range(p_img_size):
+                    distance = img_data_array[x][y]
+                    # NOTE: normalize && scale
+                    all_img_data_array[index][x][y] = np.clip(distance / max_val, 0, 1) * p_scale
+                    # img_data_array[x][y] = np.clip(distance / max_val, 0, 1) * p_scale
+                    
+        # Blend Img
+        blend_delta = 0.01
+        for j in range(1, 256+1):
+            blend_rank = j / 256
+            for i in range(img_counts):
+                if (i / img_counts < blend_rank) and (blend_rank <= (i+1) / img_counts ):
+                    for y in range(p_img_size):
+                        for x in range(p_img_size):
+                            mix_value = lerp(all_img_data_array[i][x][y], all_img_data_array[i+1][x][y], blend_rank*8-i)
+                            smooth_bank= smoothstep(0.5 - blend_delta, 0.5 + blend_delta, mix_value)
+                            cur_img_col = all_img_data_array[img_counts][x][y]
+                            all_img_data_array[img_counts][x][y] = ((j-1) * cur_img_col + smooth_bank)/j
+                            break
+
+        out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
+        cv2.imwrite(p_output_image_path,out_img_scaled)
