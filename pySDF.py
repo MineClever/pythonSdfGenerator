@@ -349,8 +349,8 @@ class SSEDT8 (object):
                     cur_img_distance = img_data[x][y]
                     next_img_distance = next_img_data[x][y]
                     blend_val = 0 
-                    for i in range(256):
-                        sdf_lerp_val = i/255
+                    for lvl in range(256):
+                        sdf_lerp_val = lvl/255
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
                         smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta ,sample_val)
                         blend_val += smooth_val
