@@ -356,7 +356,8 @@ class SSEDT8 (object):
                         blend_val += smooth_val
                     else:
                         blend_val /= 255
-                        all_img_data_array[img_counts][x][y] += blend_val
+                        last_img = all_img_data_array[img_counts]
+                        last_img[x][y] += blend_val
         else:
             # Note : get final value
             all_img_data_array[img_counts] /= img_counts
