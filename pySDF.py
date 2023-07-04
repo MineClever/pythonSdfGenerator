@@ -321,8 +321,9 @@ class SSEDT8 (object):
                 for x in range(p_img_size):
                     distance = img_data_array[x][y]
                     # NOTE: normalize && scale
-                    img_data[x][y] = np.clip(distance / max_val * p_scale, 0, 1) 
-                    all_img_data_array.append(img_data)
+                    img_data[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
+            else:
+                all_img_data_array.append(img_data)
                     # img_data_array[x][y] = np.clip(distance / max_val, 0, 1) * p_scale
         all_img_data_array[img_counts]  = np.zeros((p_img_size, p_img_size),dtype=np.float16)
         
