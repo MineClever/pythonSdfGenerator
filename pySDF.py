@@ -31,8 +31,7 @@ class Vector2 ():
 
     def length_squared (self) -> float:
         return (self.x*self.x + self.y*self.y)
-        # return np.square(self.data)
-    
+
     def length (self) -> float:
         return np.sqrt(self.length_squared())
     
@@ -135,7 +134,7 @@ class SSEDT8 (object):
         pass
 
     @classmethod
-    def do_sdf (cls, p_input_image_path='',p_output_image_path='',p_max_img_size = 1024, p_px_scale = 0.025):
+    def do_sdf (cls, p_input_image_path='', p_img_size = 512):
         # read img by openCV
         img = cv2.imread(p_input_image_path,cv2.IMREAD_UNCHANGED)
 
@@ -144,9 +143,9 @@ class SSEDT8 (object):
         max_len = height if height > width else width
         print (img.shape)
         
-        if max_len > 512:
+        if max_len > p_img_size:
             print("do scale")
-            scale_fac = 512 / max_len
+            scale_fac = p_img_size / max_len
             print (scale_fac)
             img = cv2.resize(img,dsize=(int(width*scale_fac) , int(height* scale_fac)),interpolation=cv2.INTER_LANCZOS4)
             width = img.shape[0]
@@ -215,17 +214,27 @@ class SSEDT8 (object):
         cls.apply_pass(grid2 , offsets1 ,offsets2 ,True)
         
         # make Img data
-        out_img = np.zeros((width,height),dtype=np.float16)
+        out_data_array = np.zeros((width,height),dtype=np.float16)
         # print(out_img.shape)
         for y in range(height):
             for x in range(width):
                 distance1 = grid1.get_dist(x, y)
                 distance2 = grid2.get_dist(x, y)
                 distance = distance2.length() - distance1.length()
-                distance = (1 + max(-1, min(distance * p_px_scale, 1))) / 2.0
-                out_img[x][y] = distance
+                out_data_array[x][y] = distance
+        return out_data_array
 
-        out_img_scaled = np.clip(out_img *255,0,255).astype('uint8')
+    @classmethod
+    def do_genshin_sdf_sequence_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
+        img_data_array = cls.do_sdf(p_input_image_path, p_img_size)
 
+        max_val = np.max(img_data_array)
+        
+        for y in range(p_img_size):
+            for x in range(p_img_size):
+                distance = img_data_array[x][y]
+                #img_data_array[x][y] = (1 + max(-1, min(distance * p_scale, 1))) / 2.0
+                img_data_array[x][y] = distance / max_val * p_scale
+        out_img_scaled = np.clip(img_data_array *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
         
