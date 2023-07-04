@@ -303,7 +303,7 @@ class SSEDT8 (object):
 
         def saturate(a):
             # type: (float) -> float
-            return min(1,max(0,a))
+            return max(0, min(1, x)) # NOTE: fix same as nvidia method
 
         def smoothstep( a,  b,  x):
             # type: (float, float, float) -> float
