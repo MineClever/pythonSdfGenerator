@@ -292,6 +292,7 @@ class SSEDT8 (object):
 
 
 
+
     @classmethod
     def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         if not p_input_image_path_list:
@@ -337,24 +338,26 @@ class SSEDT8 (object):
                 continue
             
             img_data = all_img_data_array[i]
+            next_img_data = all_img_data_array[next_index]
+
+            temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
+            for lvl in range(256):
+                sdf_lerp_val = lvl/255
+                for y in range(p_img_size):
+                    for x in range(p_img_size):
+                        cur_img_distance = img_data[x][y]
+                        next_img_distance = next_img_data[x][y]
+                        sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
+                        temp_img_data[x][y] += smoothstep(0.5 - blend_delta, 0.5 + blend_delta , sample_val)
+            temp_img_data /= 255
+
             if cls._debug :
                 print("Current Index : {}".format(i))
-                out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
+                out_img_scaled = np.clip(temp_img_data *255,0,255).astype('uint8')
                 mixed_path = os.path.splitext(p_output_image_path)
-                cv2.imwrite(mixed_path[0]+str(i)+mixed_path[1],out_img_scaled)
+                cv2.imwrite(mixed_path[0]+"_Compute_"+str(i)+mixed_path[1],out_img_scaled)
 
-            next_img_data = all_img_data_array[next_index]
-            for y in range(p_img_size):
-                for x in range(p_img_size):
-                    cur_img_distance = img_data[x][y]
-                    next_img_distance = next_img_data[x][y]
-                    blend_val = 0 
-                    for lvl in range(256):
-                        sdf_lerp_val = lvl/255
-                        sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        blend_val += smoothstep(0.5, 0.5 - blend_delta , sample_val)
-                    else:
-                        all_img_data_array[img_counts][x][y] += blend_val /255
+            all_img_data_array[img_counts] += temp_img_data
         # Note : get final value
         all_img_data_array[img_counts] /= img_counts
                         
