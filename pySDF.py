@@ -337,12 +337,12 @@ class SSEDT8 (object):
                 out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
                 mixed_path = os.path.splitext(p_output_image_path)
                 cv2.imwrite(mixed_path[0]+str(index)+mixed_path[1],out_img_scaled)
+            next_index = i+1
+            if next_index  == img_counts:
+                next_index = 0
             for y in range(p_img_size):
                 for x in range(p_img_size):
                     cur_img_distance = all_img_data_array[i][x][y]
-                    next_index = i+1
-                    if next_index  == img_counts:
-                        next_index = 0
                     next_img_distance = all_img_data_array[next_index][x][y]
                     blend_val = 0 
                     for i in range(256):
