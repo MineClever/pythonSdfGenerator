@@ -332,15 +332,17 @@ class SSEDT8 (object):
         blend_delta = 0.01
 
         for i in range(img_counts):
+            next_index = i+1
+            if next_index  == img_counts:
+                continue
+            
             img_data = all_img_data_array[i]
             if cls._debug :
                 print("Current Index : {}".format(i))
                 out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
                 mixed_path = os.path.splitext(p_output_image_path)
                 cv2.imwrite(mixed_path[0]+str(i)+mixed_path[1],out_img_scaled)
-            next_index = i+1
-            if next_index  == img_counts:
-                next_index = 0
+
             next_img_data = all_img_data_array[next_index]
             for y in range(p_img_size):
                 for x in range(p_img_size):
