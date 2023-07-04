@@ -326,8 +326,8 @@ class SSEDT8 (object):
                     img_data[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
             else:
                 all_img_data_array.append(img_data)                    
-        all_img_data_array[img_counts]  = np.zeros((p_img_size, p_img_size),dtype=np.float16)
-        
+        all_img_data_array.append(np.zeros((p_img_size, p_img_size),dtype=np.float16)) 
+
         # Blend Img
         blend_delta = 0.01
 
