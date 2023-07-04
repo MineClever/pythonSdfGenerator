@@ -332,19 +332,20 @@ class SSEDT8 (object):
         blend_delta = 0.01
 
         for i in range(img_counts):
+            img_data = all_img_data_array[i]
             if cls._debug :
                 print("Current Index : {}".format(i))
-                img_data = all_img_data_array[i]
                 out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
                 mixed_path = os.path.splitext(p_output_image_path)
-                cv2.imwrite(mixed_path[0]+str(index)+mixed_path[1],out_img_scaled)
+                cv2.imwrite(mixed_path[0]+str(i)+mixed_path[1],out_img_scaled)
             next_index = i+1
             if next_index  == img_counts:
                 next_index = 0
+            next_img_data = all_img_data_array[next_index]
             for y in range(p_img_size):
                 for x in range(p_img_size):
-                    cur_img_distance = all_img_data_array[i][x][y]
-                    next_img_distance = all_img_data_array[next_index][x][y]
+                    cur_img_distance = img_data[x][y]
+                    next_img_distance = next_img_data[x][y]
                     blend_val = 0 
                     for i in range(256):
                         sdf_lerp_val = i/256
