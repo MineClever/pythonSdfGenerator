@@ -333,8 +333,8 @@ class SSEDT8 (object):
 
         for i in range(img_counts):
             next_index = i+1
-            if next_index  == img_counts:
-                continue
+            if next_index  >= img_counts:
+                next_index = 0
             
             img_data = all_img_data_array[i]
             if cls._debug :
