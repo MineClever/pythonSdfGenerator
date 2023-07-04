@@ -48,7 +48,7 @@ class Vector2 ():
 # [-1, 1][0, 1][1, 1]
 
 class SSEDT8 (object):
-    _debug = True
+    _debug = False
 
     class Grid ():
         
