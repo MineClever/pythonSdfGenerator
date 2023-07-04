@@ -330,6 +330,7 @@ class SSEDT8 (object):
 
         # Blend Img
         blend_delta = 0.01
+        delta_cut = 16
 
         for i in range(img_counts):
             img_data = all_img_data_array[i]
@@ -343,8 +344,8 @@ class SSEDT8 (object):
                 continue
             next_img_data = all_img_data_array[next_index]
             temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
-            for i in range(256):
-                sdf_lerp_val = i/255
+            for i in range(delta_cut+1):
+                sdf_lerp_val = i/delta_cut
                 for y in range(p_img_size):
                     for x in range(p_img_size):
                         cur_img_distance = img_data[x][y]
@@ -353,7 +354,7 @@ class SSEDT8 (object):
                         smooth_val = smoothstep(0.5 - blend_delta, 0.5 +blend_delta ,sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
-                temp_img_data /= 255
+                temp_img_data /= delta_cut
                 all_img_data_array[img_counts] += temp_img_data
         else:
             # Note : get final value
