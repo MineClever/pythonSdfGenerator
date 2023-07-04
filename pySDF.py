@@ -334,7 +334,7 @@ class SSEDT8 (object):
         for i in range(img_counts):
             next_index = i+1
             if next_index  >= img_counts:
-                next_index = 0
+                continue
             
             img_data = all_img_data_array[i]
             if cls._debug :
@@ -352,12 +352,9 @@ class SSEDT8 (object):
                     for lvl in range(256):
                         sdf_lerp_val = lvl/255
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta ,sample_val)
-                        blend_val += smooth_val
+                        blend_val += smoothstep(0.5, 0.5 - blend_delta , sample_val)
                     else:
-                        blend_val /= 255
-                        last_img = all_img_data_array[img_counts]
-                        last_img[x][y] += blend_val
+                        all_img_data_array[img_counts][x][y] += blend_val /255
         # Note : get final value
         all_img_data_array[img_counts] /= img_counts
                         
