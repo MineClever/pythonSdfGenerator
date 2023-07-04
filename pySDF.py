@@ -358,9 +358,8 @@ class SSEDT8 (object):
                         blend_val /= 255
                         last_img = all_img_data_array[img_counts]
                         last_img[x][y] += blend_val
-        else:
-            # Note : get final value
-            all_img_data_array[img_counts] /= img_counts
+        # Note : get final value
+        all_img_data_array[img_counts] /= img_counts
                         
         out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
