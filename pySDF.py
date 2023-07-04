@@ -333,6 +333,7 @@ class SSEDT8 (object):
 
         for i in range(img_counts):
             if cls._debug :
+                print("Current Index : {}".format(i))
                 img_data = all_img_data_array[i]
                 out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
                 mixed_path = os.path.splitext(p_output_image_path)
