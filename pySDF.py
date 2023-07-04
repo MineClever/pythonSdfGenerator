@@ -292,7 +292,6 @@ class SSEDT8 (object):
 
 
 
-
     @classmethod
     def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         if not p_input_image_path_list:
@@ -304,7 +303,7 @@ class SSEDT8 (object):
 
         def saturate(a):
             # type: (float) -> float
-            return max(0, min(1, x)) # NOTE: fix same as nvidia method
+            return min(1,max(0,a))
 
         def smoothstep( a,  b,  x):
             # type: (float, float, float) -> float
@@ -333,33 +332,32 @@ class SSEDT8 (object):
         blend_delta = 0.01
 
         for i in range(img_counts):
-            next_index = i+1
-            if next_index  >= img_counts:
-                continue
-            
             img_data = all_img_data_array[i]
+            if cls._debug :
+                print("Current Index : {}".format(i))
+                out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
+                mixed_path = os.path.splitext(p_output_image_path)
+                cv2.imwrite(mixed_path[0]+str(i)+mixed_path[1],out_img_scaled)
+            next_index = i+1
+            if next_index  == img_counts:
+                continue
             next_img_data = all_img_data_array[next_index]
-
             temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
-            for lvl in range(256):
-                sdf_lerp_val = lvl/255
+            for i in range(256):
+                sdf_lerp_val = i/255
                 for y in range(p_img_size):
                     for x in range(p_img_size):
                         cur_img_distance = img_data[x][y]
                         next_img_distance = next_img_data[x][y]
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        temp_img_data[x][y] += smoothstep(0.5 - blend_delta, 0.5 + blend_delta , sample_val)
-            temp_img_data /= 255
-
-            if cls._debug :
-                print("Current Index : {}".format(i))
-                out_img_scaled = np.clip(temp_img_data *255,0,255).astype('uint8')
-                mixed_path = os.path.splitext(p_output_image_path)
-                cv2.imwrite(mixed_path[0]+"_Compute_"+str(i)+mixed_path[1],out_img_scaled)
-
-            all_img_data_array[img_counts] += temp_img_data
-        # Note : get final value
-        all_img_data_array[img_counts] /= img_counts
+                        smooth_val = smoothstep(0.5 - blend_delta, 0.5 +blend_delta ,sample_val)
+                        temp_img_data[x][y] += smooth_val
+            else:
+                temp_img_data /= 255
+                all_img_data_array[img_counts] += temp_img_data
+        else:
+            # Note : get final value
+            all_img_data_array[img_counts] /= img_counts
                         
         out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
