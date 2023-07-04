@@ -8,6 +8,7 @@ import math as math
 
 # def type
 class Vector2 ():
+    _debug = True
     def __init__(self, x=0,y=0):
         self.data = np.array((x,y),dtype=float)
 
@@ -47,6 +48,7 @@ class Vector2 ():
 # [-1, 1][0, 1][1, 1]
 
 class SSEDT8 (object):
+    _debug = True
 
     class Grid ():
         
@@ -323,29 +325,36 @@ class SSEDT8 (object):
                     # NOTE: normalize && scale
                     img_data[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
             else:
-                all_img_data_array.append(img_data)
-                    # img_data_array[x][y] = np.clip(distance / max_val, 0, 1) * p_scale
+                all_img_data_array.append(img_data)                    
         all_img_data_array[img_counts]  = np.zeros((p_img_size, p_img_size),dtype=np.float16)
         
         # Blend Img
         blend_delta = 0.01
 
         for i in range(img_counts):
-            cur_img_distance = all_img_data_array[i][x][y]
-            next_index = i+1
-            if next_index  == img_counts:
-                next_index = 0
-            next_img_distance = all_img_data_array[next_index][x][y]
-            blend_val = 0 
-            for i in range(256):
-                sdf_lerp_val = i/256
-                sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                smooth_val = smoothstep(0.5, 0.5 - blend_delta ,sample_val)
-                blend_val += smooth_val
-            else:
-                blend_val /= 256
-                all_img_data_array[img_counts][x][y] += blend_val
+            if cls._debug :
+                img_data = all_img_data_array[i]
+                out_img_scaled = np.clip(img_data *255,0,255).astype('uint8')
+                mixed_path = os.path.splitext(p_output_image_path)
+                cv2.imwrite(mixed_path[0]+str(index)+mixed_path[1],out_img_scaled)
+            for y in range(p_img_size):
+                for x in range(p_img_size):
+                    cur_img_distance = all_img_data_array[i][x][y]
+                    next_index = i+1
+                    if next_index  == img_counts:
+                        next_index = 0
+                    next_img_distance = all_img_data_array[next_index][x][y]
+                    blend_val = 0 
+                    for i in range(256):
+                        sdf_lerp_val = i/256
+                        sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
+                        smooth_val = smoothstep(0.5, 0.5 - blend_delta ,sample_val)
+                        blend_val += smooth_val
+                    else:
+                        blend_val /= 256
+                        all_img_data_array[img_counts][x][y] += blend_val
         else:
+            # Note : get final value
             all_img_data_array[img_counts] /= img_counts
                         
         out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
