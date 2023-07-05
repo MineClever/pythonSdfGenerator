@@ -13,9 +13,9 @@ Written By MineClever
 
 # Result:
 
-<img src="../img/README/mixed_sdf.png" alt="mixed_sdf" align="left"/>
+<img src="./Face/SDF/mixed_sdf.png" alt="mixed_sdf" align="left"/>
 
-<img src="../img/README/sdf.png" alt="sdf" align="left"/>
+<img src="./sdf.png" alt="sdf" align="left"/>
 
 
 ---
