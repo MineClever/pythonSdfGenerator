@@ -241,7 +241,7 @@ class SSEDT8 (object):
 
 
     @classmethod
-    def do_genshin_sdf_blend_export (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
+    def do_genshin_sdf_blend_export_method1 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         if not p_input_image_path_list:
             return
 
@@ -292,7 +292,7 @@ class SSEDT8 (object):
 
 
     @classmethod
-    def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512, lerp_time=64):
+    def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_mid_scale = 0.5, p_img_size = 512, lerp_time=64):
         if not p_input_image_path_list:
             return
 
@@ -312,23 +312,27 @@ class SSEDT8 (object):
         img_counts = p_input_image_path_list.__len__()
         # NOTE: process all images, last img is export img
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
-
+        mid_scale = saturate(p_mid_scale)
+        # TODO: usd multiProcess to generate sdf more fast!
         for index in range(img_counts):
             img_path = p_input_image_path_list[index]
             img_data_array = all_img_data_array[index]
             sdf_data_array = cls.do_sdf(img_path, p_img_size)
             max_val = np.max(sdf_data_array)
+
             for y in range(p_img_size):
                 for x in range(p_img_size):
                     distance = sdf_data_array[x][y]
                     # NOTE: normalize && scale
-                    img_data_array[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
+                    # TODO: We should normalize line edge value as 0.5 (same as 128 of Grey 255)
+                    img_data_array[x][y] = np.clip(distance / (max_val * mid_scale) , 0, 1)
 
-        # Blend Img
+        # NOTE: Blend Img
 
-        lerp_times = lerp_time
-        blend_delta = 1 / lerp_times
-
+        lerp_times = lerp_time # NOTE: 16 -> 64 times is good enough ...
+        blend_delta = 0.4
+        # TODO: Find average point value between tow img , may get better linear interpolation ?
+        # TODO: usd multiProcess to Blend tow image more fast!
         for i in range(img_counts):
             img_data = all_img_data_array[i]
             if cls._debug :
@@ -348,7 +352,7 @@ class SSEDT8 (object):
                         cur_img_distance = img_data[x][y]
                         next_img_distance = next_img_data[x][y]
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        smooth_val = smoothstep(0.5 - blend_delta, 0.5 +blend_delta ,sample_val)
+                        smooth_val = smoothstep(0, 0.5, sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
                 temp_img_data /= lerp_times
