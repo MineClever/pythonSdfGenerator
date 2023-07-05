@@ -217,7 +217,7 @@ class SSEDT8 (object):
         cls.apply_pass(grid2 , offsets1 ,offsets2 ,True)
 
         # make Img data
-        out_data_array = np.zeros((width,height),dtype=np.float16)
+        out_data_array = np.zeros((width,height),dtype=np.float32)
         # print(out_img.shape)
         for y in range(height):
             for x in range(width):
@@ -260,7 +260,7 @@ class SSEDT8 (object):
 
         img_counts = p_input_image_path_list.__len__()
         # NOTE: process all images, last img is export img
-        all_img_data_array = np.zeros((img_counts+1, p_img_size, p_img_size),dtype=np.float16)
+        all_img_data_array = np.zeros((img_counts+1, p_img_size, p_img_size),dtype=np.float32)
 
         for index in range(img_counts):
             img_path = p_input_image_path_list[index]
@@ -344,7 +344,7 @@ class SSEDT8 (object):
             if next_index  == img_counts:
                 continue
             next_img_data = all_img_data_array[next_index]
-            temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
+            temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float32)
             for time in range(lerp_times+1):
                 sdf_lerp_val = time / lerp_times
                 for y in range(p_img_size):
