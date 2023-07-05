@@ -33,7 +33,7 @@ if not os.path.exists(export_dir):
 
 print("Gen blend one ...")
 blend_export_full_path = os.path.join(export_dir,"mixed_sdf").replace("\\","/") + ".png"
-SSEDT8.do_genshin_sdf_blend_export_method2(files_list, blend_export_full_path, p_mid_scale=0.5, p_img_size= 64, lerp_time=32)
+SSEDT8.do_genshin_sdf_blend_export_method2(files_list, blend_export_full_path, p_mid_scale=0.5, p_img_size= 128, lerp_time=32)
 
 input("Press any key ...")
 exit()

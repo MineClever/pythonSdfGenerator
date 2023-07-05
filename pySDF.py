@@ -330,7 +330,7 @@ class SSEDT8 (object):
         # NOTE: Blend Img
 
         lerp_times = lerp_time # NOTE: 16 -> 64 times is good enough ...
-        blend_delta = 0.4
+        blend_delta = 1 / img_counts
         # TODO: Find average point value between tow img , may get better linear interpolation ?
         # TODO: usd multiProcess to Blend tow image more fast!
         for i in range(img_counts):
@@ -352,7 +352,7 @@ class SSEDT8 (object):
                         cur_img_distance = img_data[x][y]
                         next_img_distance = next_img_data[x][y]
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        smooth_val = smoothstep(0, 0.5, sample_val)
+                        smooth_val = smoothstep(blend_delta, 0.5, sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
                 temp_img_data /= lerp_times
