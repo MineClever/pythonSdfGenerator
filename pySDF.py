@@ -325,7 +325,8 @@ class SSEDT8 (object):
                     distance = sdf_data_array[x][y]
                     # NOTE: normalize && scale
                     # TODO: We should normalize line edge value as 0.5 (same as 128 of Grey 255)
-                    img_data_array[x][y] = np.clip(distance / (max_val * mid_scale) , 0, 1)
+                    # NOTE: 0.865 is magic number to fix value ...
+                    img_data_array[x][y] = np.clip(distance / (max_val * mid_scale) * 0.865 , 0, 1)
 
         # NOTE: Blend Img
 
