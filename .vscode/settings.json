@@ -1,0 +1,10 @@
+{
+    "python.analysis.extraPaths": [
+        "c:\\Users\\zhengzhe\\.vscode\\extensions\\fxtd-odyssey.mayapy-1.0.4\\mayaSDK",
+        "c:\\Users\\zhengzhe\\.vscode\\extensions\\virgilsisoe.nuke-tools-0.11.0\\assets\\nuke-python-stubs",
+        "C:\\Program Files\\Autodesk\\3ds Max 2020",
+        "B:\\Program Files\\Adobe\\SubstancePainter\\Adobe Substance 3D Painter\\resources\\python\\modules",
+        "D:\\Code_Here\\QT\\pyside\\Lib\\site-packages",
+        "B:\\CgTeamWork_v6\\bin\\base"
+    ]
+}

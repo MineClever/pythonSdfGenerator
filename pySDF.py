@@ -19,7 +19,7 @@ class Vector2 ():
     @x.setter
     def x (self, value):
         self.data[0] = (value)
-        
+
     @property
     def y (self):
         return self.data[1]
@@ -36,7 +36,7 @@ class Vector2 ():
 
     def length (self) -> float:
         return np.sqrt(self.length_squared())
-    
+
 # For a bitmap with representation:
 # [0][0][0]
 # [0][1][1]
@@ -48,11 +48,11 @@ class Vector2 ():
 # [-1, 1][0, 1][1, 1]
 
 class SSEDT8 (object):
-    _debug = False
+    _debug = True
 
     class Grid ():
-        
-        def __init__(self, width:int , height:int):  
+
+        def __init__(self, width:int , height:int):
             self.width = width
             self.height = height
             self.size = Vector2(self.width,self.height)
@@ -60,7 +60,7 @@ class SSEDT8 (object):
 
         def __str__ (self):
             return "width:{},height:{}".format(self.size.x, self.size.y)
-        
+
         def has (self, x:int, y:int) -> bool:
             return (0 <= x and x < self.size.x and 0 <= self.size.y and y < self.size.y)
 
@@ -68,7 +68,7 @@ class SSEDT8 (object):
             # print ("x : {}, y: {}".format(x,y))
             return int(y * self.size.x + x)
 
-        
+
         def get_size(self) -> Vector2:
             return self.size
 
@@ -84,7 +84,7 @@ class SSEDT8 (object):
             offset_pos = pos + offset
             distance = self.get_dist(x, y)
             dist_sq = distance.length_squared()
-            
+
             if (self.has(offset_pos.x, offset_pos.y)):
                 offset_dist = self.get_dist(offset_pos.x, offset_pos.y) + offset
                 offset_sq = offset_dist.length_squared()
@@ -97,7 +97,7 @@ class SSEDT8 (object):
         size = len(p_offsets)
         for i in range(size):
             p_grid.update(x,y,p_offsets[i])
-    
+
     @classmethod
     def apply_pass (cls, p_grid : Grid, p_offsets1 : list, p_offsets2 : list, inverted=False):
         grid_size = p_grid.get_size()
@@ -130,7 +130,7 @@ class SSEDT8 (object):
                     x -= 1
                 y += 1
 
-        
+
 
     @staticmethod
     def _bind_methods():
@@ -145,18 +145,18 @@ class SSEDT8 (object):
         height = img.shape[1]
         max_len = height if height > width else width
         print (img.shape)
-        
+
         if max_len > p_img_size:
             print("do scale")
             scale_fac = p_img_size / max_len
             print (scale_fac)
-            img = cv2.resize(img,dsize=(int(width*scale_fac) , int(height* scale_fac)),interpolation=cv2.INTER_LANCZOS4)
+            img = cv2.resize(img,dsize=(int(width*scale_fac) , int(height* scale_fac)),interpolation=cv2.INTER_LINEAR)
             width = img.shape[0]
             height = img.shape[1]
-        
+
         cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         print (img.shape)
-        
+
         # Initialise grids
         grid1 = cls.Grid(width,height)
         grid2 = cls.Grid(width,height)
@@ -175,7 +175,7 @@ class SSEDT8 (object):
         # [-1,-1][0,-1][1,-1]
         # [-1, 0][0, 0][1, 0]
         # [-1, 1][0, 1][1, 1]
-        
+
         # Pass 1
 
         # [2] [1] [ ]
@@ -184,15 +184,15 @@ class SSEDT8 (object):
         offsets1 = list()
         offsets1.append(Vector2(-1, 0))     # 0
         offsets1.append(Vector2(0, -1))     # 1
-        offsets1.append(Vector2(-1, -1))    # 2 
+        offsets1.append(Vector2(-1, -1))    # 2
         offsets1.append(Vector2(1, -1))     # 3
-        
+
         # [ ] [ ] [ ]
         # [ ] [ ] [0]
         # [ ] [ ] [ ]
         offsets2 = list()
         offsets1.append(Vector2(1, 0))      # 0
-        
+
         cls.apply_pass(grid1 , offsets1 ,offsets2 ,False)
         cls.apply_pass(grid2 , offsets1 ,offsets2 ,False)
 
@@ -215,7 +215,7 @@ class SSEDT8 (object):
 
         cls.apply_pass(grid1 , offsets1 ,offsets2 ,True)
         cls.apply_pass(grid2 , offsets1 ,offsets2 ,True)
-        
+
         # make Img data
         out_data_array = np.zeros((width,height),dtype=np.float16)
         # print(out_img.shape)
@@ -244,7 +244,7 @@ class SSEDT8 (object):
     def do_genshin_sdf_blend_export (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         if not p_input_image_path_list:
             return
-        
+
         def lerp(a, b, value):
             # type: (float, float, float) -> float
             return a + value * (b - a)
@@ -257,11 +257,11 @@ class SSEDT8 (object):
             # type: (float, float, float) -> float
             t = saturate((x - a)/(b - a))
             return t*t*(3.0 - (2.0*t))
-        
+
         img_counts = p_input_image_path_list.__len__()
         # NOTE: process all images, last img is export img
         all_img_data_array = np.zeros((img_counts+1, p_img_size, p_img_size),dtype=np.float16)
-        
+
         for index in range(img_counts):
             img_path = p_input_image_path_list[index]
             img_data_array = cls.do_sdf(img_path, p_img_size)
@@ -270,9 +270,8 @@ class SSEDT8 (object):
                 for x in range(p_img_size):
                     distance = img_data_array[x][y]
                     # NOTE: normalize && scale
-                    all_img_data_array[index][x][y] = np.clip(distance / max_val * p_scale, 0, 1) 
-                    # img_data_array[x][y] = np.clip(distance / max_val, 0, 1) * p_scale
-                    
+                    all_img_data_array[index][x][y] = np.clip(distance / max_val * p_scale, 0, 1)
+
         # Blend Img
         blend_delta = 0.01
         for j in range(1, 256+1):
@@ -293,10 +292,10 @@ class SSEDT8 (object):
 
 
     @classmethod
-    def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512):
+    def do_genshin_sdf_blend_export_method2 (cls, p_input_image_path_list=[''],p_output_image_path='', p_scale = 1.25, p_img_size = 512, lerp_time=64):
         if not p_input_image_path_list:
             return
-        
+
         def lerp(a, b, value):
             # type: (float, float, float) -> float
             return a + value * (b - a)
@@ -309,28 +308,26 @@ class SSEDT8 (object):
             # type: (float, float, float) -> float
             t = saturate((x - a)/(b - a))
             return t*t*(3.0 - (2.0*t))
-        
+
         img_counts = p_input_image_path_list.__len__()
         # NOTE: process all images, last img is export img
-        all_img_data_array = []
-        
+        all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
+
         for index in range(img_counts):
-            img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
             img_path = p_input_image_path_list[index]
-            img_data_array = cls.do_sdf(img_path, p_img_size)
-            max_val = np.max(img_data_array)
+            img_data_array = all_img_data_array[index]
+            sdf_data_array = cls.do_sdf(img_path, p_img_size)
+            max_val = np.max(sdf_data_array)
             for y in range(p_img_size):
                 for x in range(p_img_size):
-                    distance = img_data_array[x][y]
+                    distance = sdf_data_array[x][y]
                     # NOTE: normalize && scale
-                    img_data[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
-            else:
-                all_img_data_array.append(img_data)                    
-        all_img_data_array.append(np.zeros((p_img_size, p_img_size),dtype=np.float16)) 
+                    img_data_array[x][y] = np.clip(distance / max_val * p_scale, 0, 1)
 
         # Blend Img
-        blend_delta = 0.01
-        delta_cut = 16
+
+        lerp_times = lerp_time
+        blend_delta = 1 / lerp_times
 
         for i in range(img_counts):
             img_data = all_img_data_array[i]
@@ -344,8 +341,8 @@ class SSEDT8 (object):
                 continue
             next_img_data = all_img_data_array[next_index]
             temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float16)
-            for i in range(delta_cut+1):
-                sdf_lerp_val = i/delta_cut
+            for time in range(lerp_times+1):
+                sdf_lerp_val = time / lerp_times
                 for y in range(p_img_size):
                     for x in range(p_img_size):
                         cur_img_distance = img_data[x][y]
@@ -354,11 +351,11 @@ class SSEDT8 (object):
                         smooth_val = smoothstep(0.5 - blend_delta, 0.5 +blend_delta ,sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
-                temp_img_data /= delta_cut
+                temp_img_data /= lerp_times
                 all_img_data_array[img_counts] += temp_img_data
         else:
             # Note : get final value
             all_img_data_array[img_counts] /= img_counts
-                        
+
         out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
