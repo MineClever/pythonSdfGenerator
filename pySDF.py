@@ -352,7 +352,7 @@ class SSEDT8 (object):
                         cur_img_distance = img_data[x][y]
                         next_img_distance = next_img_data[x][y]
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        smooth_val = smoothstep(blend_delta, 0.5, sample_val)
+                        smooth_val = smoothstep(0.0, 0.5, sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
                 temp_img_data /= lerp_times
