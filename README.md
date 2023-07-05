@@ -15,7 +15,7 @@ Written By MineClever
 
 <img src="./Face/SDF/mixed_sdf.png" alt="mixed_sdf" align="left"/>
 
-<img src="./sdf.png" alt="sdf" align="left"/>
+<img src="./example/sdf.png" alt="sdf" align="left"/>
 
 
 ---
