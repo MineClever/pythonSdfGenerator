@@ -347,7 +347,11 @@ class SSEDT8_Exporter(SSEDT8):
                     # NOTE: normalize && scale
                     # TODO: We should normalize line edge value as 0.5 (same as 128 of Grey 255)
                     # NOTE: 0.865 is magic number to fix value ...
-                    img_data_array[x][y] = np.clip(distance / (max_val * mid_scale) , 0, 1)
+                    # (1 + max(-1, min(distance / (max_val * mid_scale), 1))) / 2.0
+                    img_data_array[x][y] = np.clip(
+                        (1 + max(-1, min(distance /(max_val * mid_scale), 1))) / 2.0,
+                        0, 1
+                        )
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image ...")
@@ -381,7 +385,8 @@ class SSEDT8_Exporter(SSEDT8):
                         cur_img_distance = img_data[x][y]
                         next_img_distance = next_img_data[x][y]
                         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                        smooth_val = smoothstep(0.0, 0.5 - blend_delta, sample_val)
+                        smooth_val = smoothstep(0.5 - blend_delta,
+                                                0.5 + blend_delta, sample_val)
                         temp_img_data[x][y] += smooth_val
             else:
                 temp_img_data /= lerp_times
