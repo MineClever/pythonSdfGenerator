@@ -144,48 +144,45 @@ class SSEDT8 (object):
                     x -= 1
                 y += 1
 
-
-
     @staticmethod
     def _bind_methods():
         pass
 
-class SSEDT8_Exporter(SSEDT8):
-    _debug = True
-
     @classmethod
-    def do_sdf (cls, p_input_image_path='', p_img_size = 512):
+    def do_sdf(cls, p_input_image_path='', p_img_size=512):
         # read img by openCV
         print("Start process image : {}".format(p_input_image_path))
-        img = cv2.imread(p_input_image_path,cv2.IMREAD_UNCHANGED)
+        img = cv2.imread(p_input_image_path, cv2.IMREAD_UNCHANGED)
         width = img.shape[0]
         height = img.shape[1]
         max_len = height if height > width else width
-        print ("Origin Image size: ",img.shape)
+        print("Origin Image size: ", img.shape)
 
         if max_len > p_img_size:
             scale_fac = p_img_size / max_len
-            print ("Do scale fac :", scale_fac)
-            img = cv2.resize(img,dsize=(int(width*scale_fac) , int(height* scale_fac)),interpolation=cv2.INTER_LINEAR)
+            print("Do scale fac :", scale_fac)
+            img = cv2.resize(img,
+                             dsize=(int(width * scale_fac),
+                                    int(height * scale_fac)),
+                             interpolation=cv2.INTER_LINEAR)
             width = img.shape[0]
             height = img.shape[1]
 
         cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        print ("SDF Image Size: ", img.shape)
+        print("SDF Image Size: ", img.shape)
 
         # Initialise grids
-        grid1 = cls.Grid(width,height)
-        grid2 = cls.Grid(width,height)
+        grid1 = cls.Grid(width, height)
+        grid2 = cls.Grid(width, height)
         DISTANT = 999999
 
         for y in range(height):
             for x in range(width):
-                img_pixel = img[x][y][2] / 255 # convert 255 -> 1.0
+                img_pixel = img[x][y][2] / 255  # convert 255 -> 1.0
                 distance = 0 if img_pixel > 0.5 else DISTANT
                 grid1.set_dist(x, y, Vector2(distance, distance))
                 substract_dist = DISTANT - distance
                 grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
-
 
         # using relative offset [offset x, offset y] :
         # [-1,-1][0,-1][1,-1]
@@ -198,19 +195,19 @@ class SSEDT8_Exporter(SSEDT8):
         # [0] [ ] [ ]
         # [3] [ ] [ ]
         offsets1 = list()
-        offsets1.append(Vector2(-1, 0))     # 0
-        offsets1.append(Vector2(0, -1))     # 1
-        offsets1.append(Vector2(-1, -1))    # 2
-        offsets1.append(Vector2(1, -1))     # 3
+        offsets1.append(Vector2(-1, 0))  # 0
+        offsets1.append(Vector2(0, -1))  # 1
+        offsets1.append(Vector2(-1, -1))  # 2
+        offsets1.append(Vector2(1, -1))  # 3
 
         # [ ] [ ] [ ]
         # [ ] [ ] [0]
         # [ ] [ ] [ ]
         offsets2 = list()
-        offsets1.append(Vector2(1, 0))      # 0
+        offsets1.append(Vector2(1, 0))  # 0
 
-        cls.apply_pass(grid1 , offsets1 ,offsets2 ,False)
-        cls.apply_pass(grid2 , offsets1 ,offsets2 ,False)
+        cls.apply_pass(grid1, offsets1, offsets2, False)
+        cls.apply_pass(grid2, offsets1, offsets2, False)
 
         # Pass 2
 
@@ -220,20 +217,20 @@ class SSEDT8_Exporter(SSEDT8):
         offsets1.clear()
         offsets1.append(Vector2(1, 0))  # 0
         offsets1.append(Vector2(0, 1))  # 1
-        offsets1.append(Vector2(-1, 1)) # 2
+        offsets1.append(Vector2(-1, 1))  # 2
         offsets1.append(Vector2(1, 1))  # 3
 
         # [ ] [ ] [ ]
         # [0] [ ] [ ]
         # [ ] [ ] [ ]
         offsets2.clear()
-        offsets2.append(Vector2(-1, 0)) # 0
+        offsets2.append(Vector2(-1, 0))  # 0
 
-        cls.apply_pass(grid1 , offsets1 ,offsets2 ,True)
-        cls.apply_pass(grid2 , offsets1 ,offsets2 ,True)
+        cls.apply_pass(grid1, offsets1, offsets2, True)
+        cls.apply_pass(grid2, offsets1, offsets2, True)
 
         # make Img data
-        out_data_array = np.zeros((width,height),dtype=np.float32)
+        out_data_array = np.zeros((width, height), dtype=np.float32)
         # print(out_img.shape)
         for y in range(height):
             for x in range(width):
@@ -242,6 +239,10 @@ class SSEDT8_Exporter(SSEDT8):
                 distance = distance2.length() - distance1.length()
                 out_data_array[x][y] = distance
         return out_data_array
+
+
+class SSEDT8_Exporter(SSEDT8):
+    _debug = True
 
     @classmethod
     def do_general_sdf_img_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
@@ -315,7 +316,6 @@ class SSEDT8_Exporter(SSEDT8):
 
         out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
-
 
     @classmethod
     def do_genshin_sdf_blend_export_method2(cls,
