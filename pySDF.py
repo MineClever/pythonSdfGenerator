@@ -11,9 +11,15 @@ def lerp(a, b, value):
     # type: (float, float, float) -> float
     return a + value * (b - a)
 
+def clamp(value, min_val, max_val):
+    # type: (float, float, float) -> float
+    #return max(min(max_val, value), min_val)
+    return np.clip(value ,min_val, max_val)
+
+
 def saturate(a):
     # type: (float) -> float
-    return min(1,max(0,a))
+    return clamp(a, 0, 1)
 
 def smoothstep( a,  b,  x):
     # type: (float, float, float) -> float
@@ -344,14 +350,10 @@ class SSEDT8_Exporter(SSEDT8):
             for y in range(p_img_size):
                 for x in range(p_img_size):
                     distance = sdf_data_array[x][y]
+                    scaled_distance = distance / (max_val * mid_scale)
                     # NOTE: normalize && scale
-                    # TODO: We should normalize line edge value as 0.5 (same as 128 of Grey 255)
-                    # NOTE: 0.865 is magic number to fix value ...
-                    # (1 + max(-1, min(distance / (max_val * mid_scale), 1))) / 2.0
-                    img_data_array[x][y] = np.clip(
-                        (1 + max(-1, min(distance /(max_val * mid_scale), 1))) / 2.0,
-                        0, 1
-                        )
+                    # img_data_array[x][y] = np.clip(scaled_distance , 0, 1)
+                    img_data_array[x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image ...")
