@@ -30,10 +30,11 @@ def smoothstep( a,  b,  x):
 class Vector2 ():
     _debug = True
     def __init__(self, x=0,y=0):
-        self.data = np.array((x,y),dtype=float)
+        self.data = np.array((x,y), dtype=np.float32)
 
     @property
     def x (self):
+        # type: ()-> float
         return self.data[0]
 
     @x.setter
@@ -42,6 +43,7 @@ class Vector2 ():
 
     @property
     def y (self):
+        # type: ()->np.float32
         return self.data[1]
 
     @y.setter
@@ -51,10 +53,16 @@ class Vector2 ():
     def __add__ (self, value):
         return Vector2((self.x+value.x),(self.y+value.y))
 
-    def length_squared (self) -> float:
+    def __mod__(self, b):
+        # type: (Vector2)->np.float32
+        return self.length() - b.length()
+
+    def length_squared (self):
+        # type: ()->np.float32
         return (self.x*self.x + self.y*self.y)
 
-    def length (self) -> float:
+    def length (self):
+        # type: ()->np.float32
         return np.sqrt(self.length_squared())
 
 # For a bitmap with representation:
@@ -76,7 +84,7 @@ class SSEDT8 (object):
             self.width = width
             self.height = height
             self.size = Vector2(self.width,self.height)
-            self.distances = [Vector2(0,0)]* (self.width*self.height)
+            self.distances = np.array([Vector2(0,0)]* (self.width*self.height))
 
         def __str__ (self):
             return "width:{},height:{}".format(self.size.x, self.size.y)
@@ -85,8 +93,7 @@ class SSEDT8 (object):
             return (0 <= x and x < self.size.x and 0 <= self.size.y and y < self.size.y)
 
         def _index (self, x:int, y:int) -> int:
-            # print ("x : {}, y: {}".format(x,y))
-            return int(y * self.size.x + x)
+            return (y * self.size.x + x).astype(int)
 
 
         def get_size(self) -> Vector2:
@@ -184,8 +191,14 @@ class SSEDT8 (object):
 
     @classmethod
     def do_sdf(cls, p_input_image_path='', p_img_size=512, b_img_quad=False):
+        img_data = cls.read_img_data(p_input_image_path, p_img_size, b_img_quad)
+        return cls._do_sdf(img_data, p_img_size, b_img_quad)
+
+    @classmethod
+    def _do_sdf(cls, img_data, *args, **kw):
+        # type: (cv2.Mat, ..., ...) -> np.ndarray
         # read img by openCV
-        img = cls.read_img_data(p_input_image_path, p_img_size, b_img_quad)
+        img = img_data
         width = img.shape[0]
         height = img.shape[1]
         print("Process SDF Image Size: ", img.shape)
@@ -198,13 +211,29 @@ class SSEDT8 (object):
         grid2 = cls.Grid(width, height)
         DISTANT = 999999
 
-        for y in range(height):
-            for x in range(width):
-                img_pixel = img[x][y][0] / data_max_value  # convert 255 -> 1.0
-                distance = 0 if img_pixel > 0.5 else DISTANT
-                grid1.set_dist(x, y, Vector2(distance, distance))
-                substract_dist = DISTANT - distance
-                grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
+        
+        # NOTE: Create as index map
+        index_map_array = np.arange(width*height,dtype=np.uint32)
+
+        def set_grids (img_index):
+            x = (img_index // width)
+            y = (img_index % height)
+            img_pixel = img[x][y][0] / data_max_value # convert 255 -> 1.0
+            distance = 0 if img_pixel > 0.5 else DISTANT
+            grid1.set_dist(x, y, Vector2(distance, distance))
+            substract_dist = DISTANT - distance
+            grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
+
+        vec_set_grids = np.vectorize(set_grids)
+        vec_set_grids(index_map_array)
+                
+        # for y in range(height):
+        #     for x in range(width):
+        #         img_pixel = img[x][y][0]
+        #         distance = 0 if img_pixel > 0.5 else DISTANT
+        #         grid1.set_dist(x, y, Vector2(distance, distance))
+        #         substract_dist = DISTANT - distance
+        #         grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
 
         # using relative offset [offset x, offset y] :
         # [-1,-1][0,-1][1,-1]
@@ -252,14 +281,16 @@ class SSEDT8 (object):
         cls.apply_pass(grid2, offsets1, offsets2, True)
 
         # make Img data
-        out_data_array = np.zeros((width, height), dtype=np.float32)
-
-        for y in range(height):
-            for x in range(width):
-                distance1 = grid1.get_dist(x, y)
-                distance2 = grid2.get_dist(x, y)
-                distance = distance2.length() - distance1.length()
-                out_data_array[x][y] = distance
+        # out_data_array = np.zeros((width, height), dtype=np.float32)
+        
+        def get_grids (img_index):
+            x = (img_index // width)
+            y = (img_index % height)
+            distance1 = grid1.get_dist(x, y)
+            distance2 = grid2.get_dist(x, y)
+            return distance2 % distance1
+        
+        out_data_array = get_grids(index_map_array).reshape(width, height)
         return out_data_array
 
 
@@ -381,6 +412,29 @@ class SSEDT8_Exporter(SSEDT8):
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
         mid_scale = saturate(p_scale)
 
+
+        # index_map = np.arange(img_counts, dtype=int)
+        # img_data_list = []
+        # for index in range(img_counts): 
+        #     img_path = p_input_image_path_list[index]
+        #     img_data = cls.read_img_data(img_path, p_img_size, b_img_quad=True)
+        #     img_data_list.append(img_data)
+
+        # def gen_sdf_img_from(in_index_array):
+        #     generated_id = in_index_array[in_index_array]
+        #     img_data = img_data_list[generated_id]
+        #     sdf_data_array = cls._do_sdf(img_data)
+        #     max_val = np.max(sdf_data_array)
+
+        #     def array_distance_process (distance):
+        #         scaled_distance = distance / (max_val * mid_scale)
+        #         return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+        #     all_img_data_array[generated_id] = array_distance_process(sdf_data_array)
+            
+        # temp = gen_sdf_img_from(index_map)
+        # print(temp)
+        # exit()
+        
         for index in range(img_counts):
             img_path = p_input_image_path_list[index]
             sdf_data_array = cls.do_sdf(img_path, p_img_size, b_img_quad=True)
@@ -391,14 +445,14 @@ class SSEDT8_Exporter(SSEDT8):
                 return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
             
             all_img_data_array[index] = array_distance_process(sdf_data_array)
-            # img_data_array = all_img_data_array[index]
-            # for y in range(p_img_size):
-            #     for x in range(p_img_size):
-            #         distance = sdf_data_array[x][y]
-            #         scaled_distance = distance / (max_val * mid_scale)
-            #         # NOTE: normalize && scale
-            #         # img_data_array[x][y] = np.clip(scaled_distance , 0, 1)
-            #         img_data_array[x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+            img_data_array = all_img_data_array[index]
+            for y in range(p_img_size):
+                for x in range(p_img_size):
+                    distance = sdf_data_array[x][y]
+                    scaled_distance = distance / (max_val * mid_scale)
+                    # NOTE: normalize && scale
+                    # img_data_array[x][y] = np.clip(scaled_distance , 0, 1)
+                    img_data_array[x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image ...")
@@ -406,7 +460,7 @@ class SSEDT8_Exporter(SSEDT8):
         blend_delta = 1 / img_counts
         # TODO: Find average point value between two img , may get better linear interpolation ?
         # TODO: use multiProcess to Blend two image more fast!
-        def smooth_lerp_img_data (a_array, b_array, out_array):
+        def smooth_lerp_img_data (a_array, b_array, out_array, sdf_lerp_val):
             sample_val = lerp(a_array, b_array, sdf_lerp_val)
             smooth_val = smoothstep(0.5 - blend_delta,
                                     0.5 + blend_delta, sample_val)
@@ -434,7 +488,7 @@ class SSEDT8_Exporter(SSEDT8):
                 
             for time in range(lerp_times+1):
                 sdf_lerp_val = time / lerp_times
-                smooth_lerp_img_data(img_data, next_img_data, [temp_img_data])
+                smooth_lerp_img_data(img_data, next_img_data, [temp_img_data], sdf_lerp_val)
                 # for y in range(p_img_size):
                 #     for x in range(p_img_size):
                 #         cur_img_distance = img_data[x][y]
