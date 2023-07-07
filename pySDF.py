@@ -329,24 +329,41 @@ class SSEDT8_Exporter(SSEDT8):
         print("Blending Mixed SDF Image From {} and {}".format(p_img_a_path, p_img_b_path))
         lerp_times = p_lerp_time # NOTE: 16 -> 64 times is good enough ...
         blend_delta = p_blend_delta
+        img_counts =2
         a_img_data = cls.read_img_data(p_img_a_path)
         b_img_data = cls.read_img_data(p_img_b_path)
-        a_img_data_array = np.asarray(a_img_data[:,:,0]) / (np.iinfo(a_img_data.dtype).max)
-        b_img_data_array = np.asarray(b_img_data[:,:,0]) / (np.iinfo(b_img_data.dtype).max)
-        temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float32)
-        for time in range(lerp_times+1):
-            sdf_lerp_val = time / lerp_times
-            for y in range(p_img_size):
-                for x in range(p_img_size):
-                    a_img_distance = a_img_data_array[x][y]
-                    b_img_distance = b_img_data_array[x][y]
-                    sample_val = lerp(a_img_distance, b_img_distance, sdf_lerp_val)
-                    smooth_val = smoothstep(0.5 - blend_delta,
-                                            0.5 + blend_delta, sample_val)
-                    temp_img_data[x][y] += smooth_val
+        all_img_data_array = np.array([a_img_data, b_img_data])
+
+        # TODO: Find average point value between two img , may get better linear interpolation ?
+        # TODO: use multiProcess to Blend two image more fast!
+        def smooth_lerp_img_data(a_array, b_array, out_array, sdf_lerp_val):
+            sample_val = lerp(a_array, b_array, sdf_lerp_val)
+            smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta,
+                                    sample_val)
+            out_array[0] += smooth_val
+
+        for cur_index in range(img_counts):
+            print("Current Index : {}".format(cur_index))
+            img_data = all_img_data_array[cur_index]
+
+            # NOTE: only mix img between two img
+            next_index = cur_index + 1
+            if next_index >= img_counts:
+                continue
+
+            next_img_data = all_img_data_array[next_index]
+            temp_img_data = np.zeros((p_img_size, p_img_size),
+                                     dtype=np.float32)
+
+            for time in range(lerp_times + 1):
+                sdf_lerp_val = time / lerp_times
+                smooth_lerp_img_data(img_data, next_img_data, [temp_img_data], sdf_lerp_val)
+            else:
+                temp_img_data /= lerp_times
+                all_img_data_array[img_counts] += temp_img_data
         else:
-            temp_img_data /= lerp_times
-            return temp_img_data
+            # Note : get final value
+            all_img_data_array[img_counts] /= img_counts
 
     @classmethod
     def do_genshin_sdf_blend_export_method1(cls,
@@ -458,8 +475,6 @@ class SSEDT8_Exporter(SSEDT8):
         print("Blending Mixed SDF Image ...")
         lerp_times = p_lerp_time # NOTE: 16 -> 64 times is good enough ...
         blend_delta = 1 / img_counts
-        # TODO: Find average point value between two img , may get better linear interpolation ?
-        # TODO: use multiProcess to Blend two image more fast!
         def smooth_lerp_img_data (a_array, b_array, out_array, sdf_lerp_val):
             sample_val = lerp(a_array, b_array, sdf_lerp_val)
             smooth_val = smoothstep(0.5 - blend_delta,
