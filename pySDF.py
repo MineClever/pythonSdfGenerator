@@ -191,20 +191,26 @@ class SSEDT8 (object):
 
     @classmethod
     def do_sdf(cls, p_input_image_path='', p_img_size=512, b_img_quad=False):
+        # read img by openCV
         img_data = cls.read_img_data(p_input_image_path, p_img_size, b_img_quad)
-        return cls._do_sdf(img_data, p_img_size, b_img_quad)
+        if (img_data.shape.__len__()>=3):
+            cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
+            img_data = img_data[:,:,0]
+        width = img_data.shape[0]
+        height = img_data.shape[1]
+        return cls._do_sdf(img_data, width, height)
 
     @classmethod
-    def _do_sdf(cls, img_data, *args, **kw):
-        # type: (cv2.Mat, ..., ...) -> np.ndarray
-        # read img by openCV
-        img = img_data
-        width = img.shape[0]
-        height = img.shape[1]
-        print("Process SDF Image Size: ", img.shape)
-        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        data_max_value = (np.iinfo(img.dtype).max)
-        print("SDF Image bit depth as : {}, Max bit depth count as {}".format(img.dtype, data_max_value))
+    def _do_sdf(cls, img_data, p_width, p_height, *args, **kw):
+        # type: (cv2.Mat, int, int, ..., ...) -> np.ndarray
+
+        grey_img_data = img_data
+        width = p_width
+        height = p_height
+        print("Process SDF Image Size: ", width, height)
+
+        data_max_value = (np.iinfo(grey_img_data.dtype).max)
+        print("SDF Image bit depth as : {}, Max bit depth count as {}".format(grey_img_data.dtype, data_max_value))
 
         # Initialise grids
         grid1 = cls.Grid(width, height)
@@ -215,25 +221,17 @@ class SSEDT8 (object):
         # NOTE: Create as index map
         index_map_array = np.arange(width*height,dtype=np.uint32)
 
-        def set_grids (img_index):
-            x = (img_index // width)
-            y = (img_index % height)
-            img_pixel = img[x][y][0] / data_max_value # convert 255 -> 1.0
-            distance = 0 if img_pixel > 0.5 else DISTANT
+        def set_grids (img_index_array):
+            x = (img_index_array // width)
+            y = (img_index_array % height)
+            img_pixel = grey_img_data[x][y] / data_max_value
+            distance = 0 if (img_pixel > 0.5) else DISTANT
             grid1.set_dist(x, y, Vector2(distance, distance))
             substract_dist = DISTANT - distance
             grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
 
         vec_set_grids = np.vectorize(set_grids)
         vec_set_grids(index_map_array)
-
-        # for y in range(height):
-        #     for x in range(width):
-        #         img_pixel = img[x][y][0]
-        #         distance = 0 if img_pixel > 0.5 else DISTANT
-        #         grid1.set_dist(x, y, Vector2(distance, distance))
-        #         substract_dist = DISTANT - distance
-        #         grid2.set_dist(x, y, Vector2(substract_dist, substract_dist))
 
         # using relative offset [offset x, offset y] :
         # [-1,-1][0,-1][1,-1]
@@ -323,47 +321,34 @@ class SSEDT8_Exporter(SSEDT8):
         cv2.imwrite(p_output_image_path, out_img_scaled)
 
     @classmethod
-    def do_genshin_sdf_mix_data(cls, p_img_a_path="", p_img_b_path="", p_img_size=512, p_lerp_time=32, p_blend_delta = 0.01):
+    def do_genshin_sdf_mix_data(cls, p_img_a_path="", p_img_b_path="", p_output_image_path="", p_img_size=512, p_lerp_time=32, p_blend_delta = 0.01):
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image From {} and {}".format(p_img_a_path, p_img_b_path))
         lerp_times = p_lerp_time # NOTE: 16 -> 64 times is good enough ...
         blend_delta = p_blend_delta
-        img_counts =2
-        a_img_data = cls.read_img_data(p_img_a_path)
-        b_img_data = cls.read_img_data(p_img_b_path)
-        all_img_data_array = np.array([a_img_data, b_img_data])
 
-        # TODO: Find average point value between two img , may get better linear interpolation ?
-        # TODO: use multiProcess to Blend two image more fast!
+        cur_img_data = cls.read_img_data(p_img_a_path)
+        next_img_data = cls.read_img_data(p_img_b_path)
+
         def smooth_lerp_img_data(a_array, b_array, out_array, sdf_lerp_val):
             sample_val = lerp(a_array, b_array, sdf_lerp_val)
-            smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta,
-                                    sample_val)
+            smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta, sample_val)
             out_array[0] += smooth_val
 
-        for cur_index in range(img_counts):
-            print("Current Index : {}".format(cur_index))
-            img_data = all_img_data_array[cur_index]
+        temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float32)
 
-            # NOTE: only mix img between two img
-            next_index = cur_index + 1
-            if next_index >= img_counts:
-                continue
+        lerp_val_array = np.arange(1, lerp_times + 1, 1/lerp_times)
+        def smooth_lerp_img_data_in_array (lerp_val_array):
+            smooth_lerp_img_data(cur_img_data, next_img_data, [temp_img_data], lerp_val_array)
 
-            next_img_data = all_img_data_array[next_index]
-            temp_img_data = np.zeros((p_img_size, p_img_size),
-                                     dtype=np.float32)
+        smooth_lerp_img_data_in_array(lerp_val_array)
+        temp_img_data /= lerp_times
 
-            for time in range(lerp_times + 1):
-                sdf_lerp_val = time / lerp_times
-                smooth_lerp_img_data(img_data, next_img_data, [temp_img_data], sdf_lerp_val)
-            else:
-                temp_img_data /= lerp_times
-                all_img_data_array[img_counts] += temp_img_data
-        else:
-            # Note : get final value
-            all_img_data_array[img_counts] /= img_counts
+        data_max_value = (np.iinfo(np.uint16).max)
+        print("Write Export map as {}, max bit depth count as {} ".format(p_output_image_path, data_max_value))
+        out_img_scaled = np.clip(temp_img_data * data_max_value, 0, data_max_value).astype(np.uint16)
+        cv2.imwrite(p_output_image_path,out_img_scaled)
 
     @classmethod
     def do_genshin_sdf_blend_export_method1(cls,
@@ -429,29 +414,6 @@ class SSEDT8_Exporter(SSEDT8):
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
         mid_scale = saturate(p_scale)
 
-
-        # index_map = np.arange(img_counts, dtype=int)
-        # img_data_list = []
-        # for index in range(img_counts):
-        #     img_path = p_input_image_path_list[index]
-        #     img_data = cls.read_img_data(img_path, p_img_size, b_img_quad=True)
-        #     img_data_list.append(img_data)
-
-        # def gen_sdf_img_from(in_index_array):
-        #     generated_id = in_index_array[in_index_array]
-        #     img_data = img_data_list[generated_id]
-        #     sdf_data_array = cls._do_sdf(img_data)
-        #     max_val = np.max(sdf_data_array)
-
-        #     def array_distance_process (distance):
-        #         scaled_distance = distance / (max_val * mid_scale)
-        #         return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
-        #     all_img_data_array[generated_id] = array_distance_process(sdf_data_array)
-
-        # temp = gen_sdf_img_from(index_map)
-        # print(temp)
-        # exit()
-
         for index in range(img_counts):
             img_path = p_input_image_path_list[index]
             sdf_data_array = cls.do_sdf(img_path, p_img_size, b_img_quad=True)
@@ -462,35 +424,37 @@ class SSEDT8_Exporter(SSEDT8):
                 return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
 
             all_img_data_array[index] = array_distance_process(sdf_data_array)
-            # img_data_array = all_img_data_array[index]
-            # for y in range(p_img_size):
-            #     for x in range(p_img_size):
-            #         distance = sdf_data_array[x][y]
-            #         scaled_distance = distance / (max_val * mid_scale)
-            #         # NOTE: normalize && scale
-            #         # img_data_array[x][y] = np.clip(scaled_distance , 0, 1)
-            #         img_data_array[x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image ...")
         lerp_times = p_lerp_time # NOTE: 16 -> 64 times is good enough ...
-        blend_delta = 1 / img_counts
+        blend_delta = clamp(1 / img_counts, 0.01, 0.05)
         def smooth_lerp_img_data (a_array, b_array, out_array, sdf_lerp_val):
             sample_val = lerp(a_array, b_array, sdf_lerp_val)
-            smooth_val = smoothstep(0.5 - blend_delta,
-                                    0.5 + blend_delta, sample_val)
+            smooth_val = smoothstep(0.5 - blend_delta, 0.5 + blend_delta, sample_val)
             out_array[0] += smooth_val
+
+        one_d_array = np.linspace(0, 1, num=lerp_times).tolist()
+        def create_lerp_val_stack (lerp_var_array):
+            array_stack = np.zeros([lerp_times, p_img_size, p_img_size])
+            for i in range(lerp_var_array.__len__()):
+                val = lerp_var_array[i]
+                val_layer = np.full([p_img_size, p_img_size], val)
+                array_stack[i] = val_layer
+            return array_stack
+        lerp_val_array = create_lerp_val_stack(one_d_array)
 
         for cur_index in range(img_counts):
             print("Current Index : {}".format(cur_index))
-            img_data = all_img_data_array[cur_index]
+            cur_img_data = all_img_data_array[cur_index]
             if b_export_sdf:
                 # NOTE: auto gen sdf file name
                 mixed_path = os.path.splitext(p_output_image_path)
                 out_img_path = mixed_path[0]+str(cur_index)+mixed_path[1]
 
                 data_max_value = (np.iinfo(np.uint16).max)
-                out_img_scaled = np.clip(img_data *data_max_value, 0, data_max_value).astype(np.uint16)
+                out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
                 cv2.imwrite(out_img_path, out_img_scaled)
 
             # NOTE: only mix img between two img
@@ -501,20 +465,11 @@ class SSEDT8_Exporter(SSEDT8):
             next_img_data = all_img_data_array[next_index]
             temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float32)
 
-            for time in range(lerp_times+1):
-                sdf_lerp_val = time / lerp_times
-                smooth_lerp_img_data(img_data, next_img_data, [temp_img_data], sdf_lerp_val)
-                # for y in range(p_img_size):
-                #     for x in range(p_img_size):
-                #         cur_img_distance = img_data[x][y]
-                #         next_img_distance = next_img_data[x][y]
-                #         sample_val = lerp(cur_img_distance, next_img_distance, sdf_lerp_val)
-                #         smooth_val = smoothstep(0.5 - blend_delta,
-                #                                 0.5 + blend_delta, sample_val)
-                #         temp_img_data[x][y] += smooth_val
-            else:
-                temp_img_data /= lerp_times
-                all_img_data_array[img_counts] += temp_img_data
+            for i in range(lerp_times):
+                smooth_lerp_img_data(cur_img_data, next_img_data, [temp_img_data], lerp_val_array[i])
+
+            temp_img_data /= lerp_times
+            all_img_data_array[img_counts] += temp_img_data
         else:
             # Note : get final value
             all_img_data_array[img_counts] /= img_counts
