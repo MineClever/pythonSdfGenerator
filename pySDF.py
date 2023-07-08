@@ -224,7 +224,7 @@ class SSEDT8 (object):
 
         def set_grids (img_index_array):
             x = (img_index_array // width)
-            y = (img_index_array % height)
+            y = (img_index_array % width)
             img_pixel = grey_img_data[x][y]
             distance = 0 if (img_pixel > 0.5) else DISTANT
             grid1.set_dist(x, y, Vector2(distance, distance))
@@ -284,7 +284,7 @@ class SSEDT8 (object):
 
         def get_grids (img_index):
             x = (img_index // width)
-            y = (img_index % height)
+            y = (img_index % width)
             distance1 = grid1.get_dist(x, y)
             distance2 = grid2.get_dist(x, y)
             return distance2 % distance1
