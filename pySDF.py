@@ -298,25 +298,26 @@ class SSEDT8_Exporter(SSEDT8):
 
     @classmethod
     def do_general_sdf_img_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
-        img_data_array = cls.do_sdf(p_input_image_path, p_img_size)
-        for y in range(p_img_size):
-            for x in range(p_img_size):
-                distance = img_data_array[x][y]
-                scaled_distance = distance * p_scale
-                img_data_array[x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+        sdf_data_array = cls.do_sdf(p_input_image_path, p_img_size, b_img_quad=True)
+        def array_distance_process (distance):
+            scaled_distance = distance * p_scale
+            return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+
+        img_data_array = array_distance_process(sdf_data_array)
         data_max_value = (np.iinfo(np.uint16).max)
         out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(np.uint16)
         cv2.imwrite(p_output_image_path, out_img_scaled)
 
     @classmethod
     def do_genshin_sdf_img_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 0.5, p_img_size = 512):
-        img_data_array = cls.do_sdf(p_input_image_path, p_img_size)
-        max_val = np.max(img_data_array)
+        sdf_data_array = cls.do_sdf(p_input_image_path, p_img_size, b_img_quad=True)
+        max_val = np.max(sdf_data_array)
         mid_scale = saturate(p_scale)
-        for y in range(p_img_size):
-            for x in range(p_img_size):
-                distance = img_data_array[x][y]
-                img_data_array[x][y] = np.clip(distance / (max_val * mid_scale) , 0, 1)
+        def array_distance_process (distance):
+            scaled_distance = distance / (max_val * mid_scale)
+            return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+        
+        img_data_array = array_distance_process(sdf_data_array)
         data_max_value = (np.iinfo(np.uint16).max)
         out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(np.uint16)
         cv2.imwrite(p_output_image_path, out_img_scaled)
@@ -339,62 +340,15 @@ class SSEDT8_Exporter(SSEDT8):
 
         temp_img_data = np.zeros((p_img_size, p_img_size),dtype=np.float32)
 
-        lerp_val_array = np.arange(1, lerp_times + 1, 1/lerp_times)
-        def smooth_lerp_img_data_in_array (lerp_val_array):
-            smooth_lerp_img_data(cur_img_data, next_img_data, [temp_img_data], lerp_val_array)
+        lerp_val_1d_array = np.linspace(0, 1, num=lerp_times)
+        for i in range(lerp_times):
+            smooth_lerp_img_data(cur_img_data, next_img_data, [temp_img_data], lerp_val_1d_array[i])
 
-        smooth_lerp_img_data_in_array(lerp_val_array)
         temp_img_data /= lerp_times
 
         data_max_value = (np.iinfo(np.uint16).max)
         print("Write Export map as {}, max bit depth count as {} ".format(p_output_image_path, data_max_value))
         out_img_scaled = np.clip(temp_img_data * data_max_value, 0, data_max_value).astype(np.uint16)
-        cv2.imwrite(p_output_image_path,out_img_scaled)
-
-    @classmethod
-    def do_genshin_sdf_blend_export_method1(cls,
-                                            p_input_image_path_list=[''],
-                                            p_output_image_path='',
-                                            p_scale=0.5,
-                                            p_img_size=512,
-                                            *args,
-                                            **kw):
-        if not p_input_image_path_list:
-            return
-
-        img_counts = p_input_image_path_list.__len__()
-        # NOTE: process all images, last img is export img
-        all_img_data_array = np.zeros((img_counts+1, p_img_size, p_img_size),dtype=np.float32)
-
-        for index in range(img_counts):
-            img_path = p_input_image_path_list[index]
-            img_data_array = cls.do_sdf(img_path, p_img_size)
-            max_val = np.max(img_data_array)
-            for y in range(p_img_size):
-                for x in range(p_img_size):
-                    distance = img_data_array[x][y]
-                    # NOTE: normalize && scale
-                    scaled_distance = distance / (max_val * p_scale)
-                    all_img_data_array[index][x][y] = (1 + np.clip(scaled_distance, -1, 1)) * 0.5
-
-        # Blend Img
-        blend_delta = 0.01
-        for grey_val in range(1, 256):
-            blend_rank = grey_val / 255
-            for img_index in range(img_counts):
-                if ((img_index / img_counts) < blend_rank) and (((img_index+1) / img_counts) >= blend_rank):
-                    for y in range(p_img_size):
-                        for x in range(p_img_size):
-                            cur_img_data = all_img_data_array[img_index][x][y]
-                            next_img_data = all_img_data_array[img_index + 1][x][y]
-                            mix_value = lerp(cur_img_data, next_img_data, blend_rank * (img_counts) - img_index)
-                            smooth_bank= smoothstep(0.5 - blend_delta, 0.5 + blend_delta, mix_value)
-                            cur_img_val_data = all_img_data_array[img_counts][x][y]
-                            cur_img_val_data = ((grey_val-1) * cur_img_val_data + smooth_bank)/grey_val
-                else:
-                    break
-
-        out_img_scaled = np.clip(all_img_data_array[img_counts] *255,0,255).astype('uint8')
         cv2.imwrite(p_output_image_path,out_img_scaled)
 
     @classmethod
