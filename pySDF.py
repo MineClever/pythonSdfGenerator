@@ -424,6 +424,16 @@ class SSEDT8_Exporter(SSEDT8):
                 return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
 
             all_img_data_array[index] = array_distance_process(sdf_data_array)
+            if b_export_sdf:
+                cur_img_data = all_img_data_array[index]
+                # NOTE: auto gen sdf file name
+                mixed_path = os.path.splitext(p_output_image_path)
+                out_img_path = mixed_path[0]+str(cur_index)+mixed_path[1]
+
+                data_max_value = (np.iinfo(np.uint16).max)
+                out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
+                print("Export SDF Img as {}".format(out_img_path))
+                cv2.imwrite(out_img_path, out_img_scaled)
 
 
         # NOTE: Blend Img
@@ -448,14 +458,6 @@ class SSEDT8_Exporter(SSEDT8):
         for cur_index in range(img_counts):
             print("Current Index : {}".format(cur_index))
             cur_img_data = all_img_data_array[cur_index]
-            if b_export_sdf:
-                # NOTE: auto gen sdf file name
-                mixed_path = os.path.splitext(p_output_image_path)
-                out_img_path = mixed_path[0]+str(cur_index)+mixed_path[1]
-
-                data_max_value = (np.iinfo(np.uint16).max)
-                out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
-                cv2.imwrite(out_img_path, out_img_scaled)
 
             # NOTE: only mix img between two img
             next_index = cur_index+1
