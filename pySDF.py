@@ -395,7 +395,7 @@ class SSEDT8_Exporter(SSEDT8):
         
         max_count = max(1, multiprocessing.cpu_count() - 1)
         process_pool = multiprocessing.Pool(max_count)
-        process_pool_queue = multiprocessing.Manager().Queue(max_count)
+        process_pool_queue = multiprocessing.Manager().Queue(max(1, max_count//2))
         task_id_list = [] # type: list[int]
         
         def sdf_data_post_process():
