@@ -201,36 +201,33 @@ class SSEDT8 (object):
             img_data = img_data[:,:,0]
         width = img_data.shape[0]
         height = img_data.shape[1]
-        data_max_value = (np.iinfo(img_data.dtype).max)
+        data_max_value = (np.iinfo(img_data.dtype).max) # type: int
         
-        string_buffer ="Process SDF Image Size: {} x {}\n".format(width, height)
-        string_buffer += "SDF Image bit depth as : {}, Max bit depth count as {}\n".format(img_data.dtype, data_max_value)
-        print(string_buffer)
-        
-        img_data = img_data / data_max_value
-        return cls._do_sdf(img_data, width, height)
+        return cls._do_sdf_in_float_range(img_data / data_max_value, width, height)
 
     @classmethod
     def do_sdf_multiprocessing(cls, queue, index, p_input_image_path='', p_img_size=512, b_img_quad=False):
         # type: (multiprocessing.Queue, int, str, int , bool) -> None
-        
-        # read img by openCV
-        img_data = cls.read_img_data(p_input_image_path, p_img_size, b_img_quad)
-        if (img_data.shape.__len__()>=3):
-            cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
-            img_data = img_data[:,:,0]
-        width = img_data.shape[0]
-        height = img_data.shape[1]
-        data_max_value = (np.iinfo(img_data.dtype).max)
-        
-        img_data = img_data / data_max_value
-        ret_data =  cls._do_sdf(img_data, width, height)
-        
+        """
+        ## do_sdf_multiprocessing : 
+        `do_sdf() in multiprocessing...`
+        ---
+        ### Arguments:
+            * queue -- Managed Queue
+            * index -- The index of current image ...
+
+        ### Keyword Arguments:
+            * p_input_image_path -- Image path (default: {''})
+            * p_img_size -- Image size (default: {512})
+            * b_img_quad -- Should scale image as quad one  (default: {False})
+        """
+        ret_data =  cls.do_sdf(p_input_image_path, p_img_size, b_img_quad)
+
         # NOTE: Put data with block
         queue.put((index, ret_data)) 
 
     @classmethod
-    def _do_sdf(cls, img_data, p_width, p_height, *args, **kw):
+    def _do_sdf_in_float_range(cls, img_data, p_width, p_height, *args, **kw):
         # type: (cv2.Mat, int, int, ..., ...) -> np.ndarray
 
         grey_img_data = img_data
