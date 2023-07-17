@@ -1,2 +1,2 @@
-psuhd %~dp0
+pushd %~dp0
 python makeSdfImg.py
