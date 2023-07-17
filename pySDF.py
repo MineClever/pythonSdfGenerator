@@ -393,7 +393,7 @@ class SSEDT8_Exporter(SSEDT8):
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
         mid_scale = saturate(p_scale)
         
-        max_count = max(1, multiprocessing.cpu_count() - 1)
+        max_count = min(img_counts, max(1, multiprocessing.cpu_count() - 1))
         process_pool = multiprocessing.Pool(max_count)
         process_pool_queue = multiprocessing.Manager().Queue(max(1, max_count//2))
         task_id_list = [] # type: list[int]
