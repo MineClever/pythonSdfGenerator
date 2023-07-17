@@ -392,6 +392,10 @@ class SSEDT8_Exporter(SSEDT8):
             return
 
         img_counts = p_input_image_path_list.__len__()
+        if img_counts < 2:
+            print("Use more than 2 imgs at least ...")
+            return
+        
         # NOTE: process all images, last img is export img
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
         mid_scale = saturate(p_scale)
