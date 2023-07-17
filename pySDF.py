@@ -322,13 +322,15 @@ class SSEDT8_Exporter(SSEDT8):
     export_img_data_type = np.uint16
 
     @classmethod
+    def normalize_distance (cls, distance):
+        # type: (np.ndarray) -> np.ndarray
+        return (1 + np.clip(distance, -1, 1)) * 0.5
+
+    @classmethod
     def do_general_sdf_img_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
         sdf_data_array = cls.do_sdf(p_input_image_path, p_img_size, b_img_quad=True)
-        def array_distance_process (distance):
-            scaled_distance = distance * p_scale
-            return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
-
-        img_data_array = array_distance_process(sdf_data_array)
+        img_data_array = cls.normalize_distance(sdf_data_array * p_scale)
+        
         data_max_value = cls.export_img_max_value
         out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(cls.export_img_data_type)
         cv2.imwrite(p_output_image_path, out_img_scaled)
@@ -340,7 +342,7 @@ class SSEDT8_Exporter(SSEDT8):
         mid_scale = saturate(p_scale)
         def array_distance_process (distance):
             scaled_distance = distance / (max_val * mid_scale)
-            return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+            return cls.normalize_distance(scaled_distance)
         
         img_data_array = array_distance_process(sdf_data_array)
         data_max_value = cls.export_img_max_value
@@ -412,7 +414,7 @@ class SSEDT8_Exporter(SSEDT8):
                 
                 def array_distance_process (distance):
                     scaled_distance = distance / (max_val * mid_scale)
-                    return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+                    return cls.normalize_distance(scaled_distance)
                 
                 all_img_data_array[index] = array_distance_process(sdf_data_array)
                 if b_export_sdf:
