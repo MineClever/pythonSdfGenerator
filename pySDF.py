@@ -5,6 +5,7 @@ import os, sys
 import cv2 as cv2
 import numpy as np
 import math as math
+import multiprocessing
 
 # def math
 def lerp(a, b, value):
@@ -207,6 +208,29 @@ class SSEDT8 (object):
         return cls._do_sdf(img_data, width, height)
 
     @classmethod
+    def do_sdf_multiprocessing(cls, queue, index, p_input_image_path='', p_img_size=512, b_img_quad=False):
+        # type: (multiprocessing.Queue, int, str, int , bool) -> None
+        
+        # read img by openCV
+        img_data = cls.read_img_data(p_input_image_path, p_img_size, b_img_quad)
+        if (img_data.shape.__len__()>=3):
+            cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
+            img_data = img_data[:,:,0]
+        width = img_data.shape[0]
+        height = img_data.shape[1]
+        print("Process SDF Image Size: ", width, height)
+        
+        data_max_value = (np.iinfo(img_data.dtype).max)
+        print("SDF Image bit depth as : {}, Max bit depth count as {}".format(img_data.dtype, data_max_value))
+        img_data = img_data / data_max_value
+        
+        ret_data =  cls._do_sdf(img_data, width, height)
+        
+        while not queue.full():
+            queue.put_nowait((index, ret_data))
+            break
+
+    @classmethod
     def _do_sdf(cls, img_data, p_width, p_height, *args, **kw):
         # type: (cv2.Mat, int, int, ..., ...) -> np.ndarray
 
@@ -368,29 +392,49 @@ class SSEDT8_Exporter(SSEDT8):
         # NOTE: process all images, last img is export img
         all_img_data_array = np.zeros([img_counts + 1, p_img_size, p_img_size], dtype=np.float32)
         mid_scale = saturate(p_scale)
+        
+        max_count = max(1, multiprocessing.cpu_count() - 1)
+        process_pool = multiprocessing.Pool(max_count)
+        process_pool_queue = multiprocessing.Manager().Queue(max_count)
+        task_id_list = [] # type: list[int]
+        
+        def sdf_data_post_process():
+            if not process_pool_queue.empty():
+                indexed_sdf_data = process_pool_queue.get_nowait() # type: tuple[int, np.ndarray]
+                index = indexed_sdf_data[0]
+                all_img_data_array[index] = indexed_sdf_data[1]
+                task_id_list.pop(task_id_list.index(index))
+                print("SDF Data was processed, Index:{}".format(index))
+                sdf_data_array = all_img_data_array[index]
+                max_val = max(0.0001, min(9999999, np.max(sdf_data_array)))
+                
+                def array_distance_process (distance):
+                    scaled_distance = distance / (max_val * mid_scale)
+                    return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
+                
+                all_img_data_array[index] = array_distance_process(sdf_data_array)
+                if b_export_sdf:
+                    cur_img_data = all_img_data_array[index]
+                    # NOTE: auto gen sdf file name
+                    mixed_path = os.path.splitext(p_output_image_path)
+                    out_img_path = mixed_path[0]+str(index)+mixed_path[1]
 
-        for index in range(img_counts):
-            print("\nCurrent Index : {}".format(index))
-            img_path = p_input_image_path_list[index]
-            sdf_data_array = cls.do_sdf(img_path, p_img_size, b_img_quad=True)
-            max_val = np.max(sdf_data_array)
-
-            def array_distance_process (distance):
-                scaled_distance = distance / (max_val * mid_scale)
-                return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
-
-            all_img_data_array[index] = array_distance_process(sdf_data_array)
-            if b_export_sdf:
-                cur_img_data = all_img_data_array[index]
-                # NOTE: auto gen sdf file name
-                mixed_path = os.path.splitext(p_output_image_path)
-                out_img_path = mixed_path[0]+str(index)+mixed_path[1]
-
-                data_max_value = (np.iinfo(np.uint16).max)
-                out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
-                print("Export SDF Img as {}".format(out_img_path))
-                cv2.imwrite(out_img_path, out_img_scaled)
-
+                    data_max_value = (np.iinfo(np.uint16).max)
+                    out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
+                    print("Export SDF Img as {}".format(out_img_path))
+                    cv2.imwrite(out_img_path, out_img_scaled)
+                
+        with process_pool as pool:
+            for index in range(img_counts):
+                img_path = p_input_image_path_list[index]
+                pool.apply_async( cls.do_sdf_multiprocessing, args=(process_pool_queue, index, img_path, p_img_size, True))
+                task_id_list.append(index)
+            pool.close()
+            while True:
+                sdf_data_post_process()
+                if task_id_list.__len__() == 0:
+                    break
+            pool.join()
 
         # NOTE: Blend Img
         print("Blending Mixed SDF Image ...")
@@ -402,17 +446,6 @@ class SSEDT8_Exporter(SSEDT8):
             out_array[0] += smooth_val
 
         lerp_val_1d_array = np.linspace(0, 1, num=lerp_times)
-
-        # NOTE: create 3d array for img data array
-        # def create_lerp_val_stack (lerp_var_array):
-        #     # type: (np.ndarray) -> np.ndarray
-        #     array_stack = np.zeros([lerp_times, p_img_size, p_img_size])
-        #     for i in range(lerp_var_array.size()):
-        #         val = lerp_var_array[i]
-        #         val_layer = np.full([p_img_size, p_img_size], val)
-        #         array_stack[i] = val_layer
-        #     return array_stack
-        # lerp_val_3d_array = create_lerp_val_stack(lerp_val_1d_array)
 
         for cur_index in range(img_counts):
             print("Current Index : {}".format(cur_index))
