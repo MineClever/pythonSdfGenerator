@@ -6,6 +6,7 @@ import cv2 as cv2
 import numpy as np
 import math as math
 import multiprocessing
+import time
 
 # def math
 def lerp(a, b, value):
@@ -165,11 +166,11 @@ class SSEDT8 (object):
     @staticmethod
     def read_img_data (p_input_image_path='', p_img_size=512, b_img_quad = False):
         # read img by openCV
-        print("Start process image : {}".format(p_input_image_path))
+        string_buffer = "\nStart process image : {}\n".format(p_input_image_path)
         img = cv2.imread(p_input_image_path, cv2.IMREAD_UNCHANGED)
         width = img.shape[0]
         height = img.shape[1]
-        print("Origin Image size: ", img.shape)
+        string_buffer += "Origin Image size: {}\n".format(img.shape)
         if (width == p_img_size or height == p_img_size):
             return img
 
@@ -183,7 +184,8 @@ class SSEDT8 (object):
             scale_fac_width = scale_fac_height = p_img_size / max_len
 
         # NOTE: scale now ...
-        print("Do scale fac :", scale_fac_width, scale_fac_height)
+        string_buffer += "Do scale fac : {} x {} \n".format(scale_fac_width, scale_fac_height)
+        print(string_buffer)
         img = cv2.resize(img,
                             dsize=(int(width * scale_fac_width),
                                 int(height * scale_fac_height)),
@@ -199,12 +201,13 @@ class SSEDT8 (object):
             img_data = img_data[:,:,0]
         width = img_data.shape[0]
         height = img_data.shape[1]
-        print("Process SDF Image Size: ", width, height)
-        
         data_max_value = (np.iinfo(img_data.dtype).max)
-        print("SDF Image bit depth as : {}, Max bit depth count as {}".format(img_data.dtype, data_max_value))
-        img_data = img_data / data_max_value
         
+        string_buffer ="Process SDF Image Size: {} x {}\n".format(width, height)
+        string_buffer += "SDF Image bit depth as : {}, Max bit depth count as {}\n".format(img_data.dtype, data_max_value)
+        print(string_buffer)
+        
+        img_data = img_data / data_max_value
         return cls._do_sdf(img_data, width, height)
 
     @classmethod
@@ -218,17 +221,13 @@ class SSEDT8 (object):
             img_data = img_data[:,:,0]
         width = img_data.shape[0]
         height = img_data.shape[1]
-        print("Process SDF Image Size: ", width, height)
-        
         data_max_value = (np.iinfo(img_data.dtype).max)
-        print("SDF Image bit depth as : {}, Max bit depth count as {}".format(img_data.dtype, data_max_value))
-        img_data = img_data / data_max_value
         
+        img_data = img_data / data_max_value
         ret_data =  cls._do_sdf(img_data, width, height)
         
-        while not queue.full():
-            queue.put_nowait((index, ret_data))
-            break
+        # NOTE: Put data with block
+        queue.put((index, ret_data)) 
 
     @classmethod
     def _do_sdf(cls, img_data, p_width, p_height, *args, **kw):
@@ -319,6 +318,8 @@ class SSEDT8 (object):
 
 class SSEDT8_Exporter(SSEDT8):
     _debug = True
+    export_img_max_value = (np.iinfo(np.uint16).max)
+    export_img_data_type = np.uint16
 
     @classmethod
     def do_general_sdf_img_export (cls, p_input_image_path='',p_output_image_path='', p_scale = 1.25, p_img_size = 512):
@@ -328,8 +329,8 @@ class SSEDT8_Exporter(SSEDT8):
             return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
 
         img_data_array = array_distance_process(sdf_data_array)
-        data_max_value = (np.iinfo(np.uint16).max)
-        out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(np.uint16)
+        data_max_value = cls.export_img_max_value
+        out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(cls.export_img_data_type)
         cv2.imwrite(p_output_image_path, out_img_scaled)
 
     @classmethod
@@ -342,8 +343,8 @@ class SSEDT8_Exporter(SSEDT8):
             return (1 + np.clip(scaled_distance, -1, 1)) * 0.5
         
         img_data_array = array_distance_process(sdf_data_array)
-        data_max_value = (np.iinfo(np.uint16).max)
-        out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(np.uint16)
+        data_max_value = cls.export_img_max_value
+        out_img_scaled = np.clip(img_data_array *data_max_value, 0, data_max_value).astype(cls.export_img_data_type)
         cv2.imwrite(p_output_image_path, out_img_scaled)
 
     @classmethod
@@ -370,9 +371,9 @@ class SSEDT8_Exporter(SSEDT8):
 
         temp_img_data /= lerp_times
 
-        data_max_value = (np.iinfo(np.uint16).max)
+        data_max_value = cls.export_img_max_value
         print("Write Export map as {}, max bit depth count as {} ".format(p_output_image_path, data_max_value))
-        out_img_scaled = np.clip(temp_img_data * data_max_value, 0, data_max_value).astype(np.uint16)
+        out_img_scaled = np.clip(temp_img_data * data_max_value, 0, data_max_value).astype(cls.export_img_data_type)
         cv2.imwrite(p_output_image_path,out_img_scaled)
 
     @classmethod
@@ -394,6 +395,7 @@ class SSEDT8_Exporter(SSEDT8):
         mid_scale = saturate(p_scale)
         
         max_count = min(img_counts, max(1, multiprocessing.cpu_count() - 1))
+        print("Using {} Processor to process ...".format(max_count))
         process_pool = multiprocessing.Pool(max_count)
         process_pool_queue = multiprocessing.Manager().Queue(max(1, max_count//2))
         task_id_list = [] # type: list[int]
@@ -403,7 +405,7 @@ class SSEDT8_Exporter(SSEDT8):
                 indexed_sdf_data = process_pool_queue.get_nowait() # type: tuple[int, np.ndarray]
                 index = indexed_sdf_data[0]
                 all_img_data_array[index] = indexed_sdf_data[1]
-                task_id_list.pop(task_id_list.index(index))
+                
                 print("SDF Data was processed, Index:{}".format(index))
                 sdf_data_array = all_img_data_array[index]
                 max_val = max(0.0001, min(9999999, np.max(sdf_data_array)))
@@ -419,11 +421,14 @@ class SSEDT8_Exporter(SSEDT8):
                     mixed_path = os.path.splitext(p_output_image_path)
                     out_img_path = mixed_path[0]+str(index)+mixed_path[1]
 
-                    data_max_value = (np.iinfo(np.uint16).max)
-                    out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(np.uint16)
+                    data_max_value = cls.export_img_max_value
+                    out_img_scaled = np.clip(cur_img_data *data_max_value, 0, data_max_value).astype(cls.export_img_data_type)
                     print("Export SDF Img as {}".format(out_img_path))
                     cv2.imwrite(out_img_path, out_img_scaled)
                 
+                task_id_list.pop(task_id_list.index(index))
+                print("{} Tasks remainder ... ".format(task_id_list.__len__()))
+
         with process_pool as pool:
             for index in range(img_counts):
                 img_path = p_input_image_path_list[index]
@@ -433,11 +438,13 @@ class SSEDT8_Exporter(SSEDT8):
             while True:
                 sdf_data_post_process()
                 if task_id_list.__len__() == 0:
+                    pool.terminate()
+                    print("All SDF Generator was finished ... ")
                     break
             pool.join()
 
         # NOTE: Blend Img
-        print("Blending Mixed SDF Image ...")
+        print("\nBlending Mixed SDF Image ...\n")
         lerp_times = p_lerp_time # NOTE: 16 -> 64 times is good enough ...
         blend_delta = clamp(1 / img_counts, 0.01, 0.05)
         def smooth_lerp_img_data (a_array, b_array, out_array, sdf_lerp_val):
@@ -468,7 +475,7 @@ class SSEDT8_Exporter(SSEDT8):
             # Note : get final value
             all_img_data_array[img_counts] /= img_counts
 
-        data_max_value = (np.iinfo(np.uint16).max)
-        print("Write Export map as {}, max bit depth count as {} ".format(p_output_image_path, data_max_value))
-        out_img_scaled = np.clip(all_img_data_array[img_counts] *data_max_value,0,data_max_value).astype(np.uint16)
+        data_max_value = cls.export_img_max_value
+        print("Write Export map as {}, max bit depth count as {} , as {}".format(p_output_image_path, data_max_value, cls.export_img_data_type.__name__))
+        out_img_scaled = np.clip(all_img_data_array[img_counts] *data_max_value,0,data_max_value).astype(cls.export_img_data_type)
         cv2.imwrite(p_output_image_path,out_img_scaled)

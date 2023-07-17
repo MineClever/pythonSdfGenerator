@@ -29,7 +29,7 @@ def run_script_gen_genshin_face(*args, **kw):
     SSEDT8_Exporter.do_genshin_sdf_blend_export_method2(files_list,
                                                         blend_export_full_path,
                                                         p_scale=0.5,
-                                                        p_img_size=512,
+                                                        p_img_size=128,
                                                         lerp_time=32,
                                                         b_export_sdf=True)
 
@@ -38,4 +38,5 @@ def run_script_gen_genshin_face(*args, **kw):
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     run_script_gen_genshin_face()
